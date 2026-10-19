@@ -12,7 +12,8 @@
     "e2e",
     "scripts",
     "src/lib/csp.ts",
-    "src/providers/hosts.ts",
+    "src/providers/*.ts",
     "eslint.config.js"
-  ]
+  ],
+  "exclude": ["src/**/*.test.ts"]
 }
