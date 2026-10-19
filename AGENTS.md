@@ -73,6 +73,13 @@ Commit in small, modular units (one logical change per commit).
   (fal) implements `inspectModel`, which the model picker calls on pick and
   whose result (field names in `VideoModel.extra`) is cached and echoed
   back on `VideoRequest.extra` at submit time.
+- **The Privacy page is generated, not written.** `privacy-page.tsx` lists
+  `providers[].hosts`, the same list the CSP is built from, so the page can
+  never drift from the policy (`e2e/privacy.spec.ts` checks they match).
+- **Resume is driven by history.** A run keeps its `JobRef` in IndexedDB
+  while in flight; `App` resumes the newest one for the current provider on
+  load and clears the ref once the job ends. Routing is the URL hash only
+  (`src/lib/use-hash.ts`): `#privacy` is the one other page.
 - **Storage degrades, never breaks.** `src/lib/settings.ts` (local/session
   storage) and `src/lib/history.ts` (IndexedDB) swallow every storage
   error and return empty results, so the app works in private mode.
