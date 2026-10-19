@@ -73,6 +73,12 @@ Commit in small, modular units (one logical change per commit).
   (fal) implements `inspectModel`, which the model picker calls on pick and
   whose result (field names in `VideoModel.extra`) is cached and echoed
   back on `VideoRequest.extra` at submit time.
+- **Model ranking is a bundled snapshot.** `src/lib/model-ranking.ts`
+  holds arena Elo scores (fetching them would break the host list), matched
+  to any provider's model by family regex plus exact tier words (fast,
+  lite, pro, max…) so a cheaper tier never inherits its flagship's score.
+  Refresh it by hand from the leaderboard, update `ARENA.asOf`, and extend
+  `model-ranking.test.ts` with the new slugs.
 - **The Privacy page is generated, not written.** `privacy-page.tsx` lists
   `providers[].hosts`, the same list the CSP is built from, so the page can
   never drift from the policy (`e2e/privacy.spec.ts` checks they match).
