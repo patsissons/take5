@@ -119,3 +119,55 @@ describe("ModelPicker", () => {
     );
   });
 });
+
+describe("ModelPicker with inspectModel", () => {
+  it("fills in a model's details on pick and caches them", async () => {
+    setModelCache("openrouter", models);
+    const inspectModel = vi.fn(async (_key: string, model: VideoModel) => ({
+      ...model,
+      durations: [5, 10],
+      extra: { firstFrameField: "image_url" },
+    }));
+    const onPick = vi.fn();
+    render(
+      <ModelPicker
+        provider={{ ...fakeProvider(vi.fn()), inspectModel }}
+        apiKey="k"
+        onPick={onPick}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /One/ }));
+    expect(inspectModel).toHaveBeenCalledWith("k", models[0]);
+    await waitFor(() =>
+      expect(onPick).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "a/one", durations: [5, 10] }),
+      ),
+    );
+    expect(
+      getModelCache("openrouter")?.models.find((m) => m.id === "a/one"),
+    ).toMatchObject({
+      durations: [5, 10],
+      extra: { firstFrameField: "image_url" },
+    });
+  });
+
+  it("reports an inspection failure without picking", async () => {
+    setModelCache("openrouter", models);
+    const onPick = vi.fn();
+    render(
+      <ModelPicker
+        provider={{
+          ...fakeProvider(vi.fn()),
+          inspectModel: vi.fn(async () => {
+            throw new Error("schema down");
+          }),
+        }}
+        apiKey="k"
+        onPick={onPick}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /One/ }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("schema down");
+    expect(onPick).not.toHaveBeenCalled();
+  });
+});

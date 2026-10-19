@@ -74,6 +74,7 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
       size: useSize ? size : undefined,
       audio: model.audio ? audio : undefined,
       images,
+      ...(model.extra ? { extra: model.extra } : {}),
     }),
     [
       model,

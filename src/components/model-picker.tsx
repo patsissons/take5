@@ -30,6 +30,33 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
   });
   const [query, setQuery] = useState("");
   const [slug, setSlug] = useState("");
+  const [inspecting, setInspecting] = useState<string | null>(null);
+  const [inspectError, setInspectError] = useState<string | null>(null);
+
+  /**
+   * Some providers (fal) describe a model's inputs and price only per
+   * model: fetch that on pick, and keep it in the cache for next time.
+   */
+  const pick = async (model: VideoModel) => {
+    if (!provider.inspectModel || inspecting) return onPick(model);
+    setInspecting(model.id);
+    setInspectError(null);
+    try {
+      const detailed = await provider.inspectModel(apiKey, model);
+      // Written synchronously: the parent reads the cache as soon as onPick
+      // runs, and a state updater would run too late for that.
+      const models = load.models.some((m) => m.id === model.id)
+        ? load.models.map((m) => (m.id === model.id ? detailed : m))
+        : [...load.models, detailed];
+      setModelCache(provider.id, models);
+      setLoad((state) => ({ ...state, models }));
+      onPick(detailed);
+    } catch (error) {
+      setInspectError((error as Error).message);
+    } finally {
+      setInspecting(null);
+    }
+  };
 
   const refresh = useCallback(async () => {
     setLoad((state) => ({
@@ -74,7 +101,7 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
     const id = slug.trim();
     if (!id) return;
     const known = load.models.find((model) => model.id === id);
-    onPick(known ?? customModel(provider.id, id));
+    void pick(known ?? customModel(provider.id, id));
   };
 
   return (
@@ -113,6 +140,16 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
           Couldn't load models: {load.error}
         </p>
       )}
+      {inspectError && (
+        <p role="alert" className="text-sm text-destructive">
+          Couldn't read that model's details: {inspectError}
+        </p>
+      )}
+      {inspecting && (
+        <p className="text-sm text-muted-foreground" aria-live="polite">
+          Checking what {inspecting} accepts…
+        </p>
+      )}
       {load.status === "loading" && load.models.length === 0 && (
         <p className="text-sm text-muted-foreground" aria-busy="true">
           Loading models…
@@ -134,7 +171,9 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
               <button
                 type="button"
                 aria-pressed={model.id === selected}
-                onClick={() => onPick(model)}
+                aria-busy={inspecting === model.id || undefined}
+                disabled={!!inspecting}
+                onClick={() => void pick(model)}
                 className="flex w-full cursor-pointer flex-col gap-1 rounded-md px-3 py-2 text-left hover:bg-muted aria-pressed:bg-primary/15"
               >
                 <span className="flex flex-wrap items-baseline gap-x-2">
