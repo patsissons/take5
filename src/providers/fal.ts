@@ -24,6 +24,8 @@ const QUEUE = "https://queue.fal.run";
 const PAGE = 50;
 const MAX_PAGES = 10;
 const POLL_MS = 3000;
+/** The most endpoint ids the pricing endpoint takes in one call. */
+const PRICES_PER_CALL = 50;
 
 /** One entry of GET api.fal.ai/v1/models. */
 export interface FalModel {
@@ -193,6 +195,41 @@ export function pricingFromPrices(
   };
 }
 
+/**
+ * Prices for many endpoints at once, by endpoint id, so the model list can
+ * show (and filter by) cost before any model is inspected. A failed chunk
+ * only leaves its models unpriced.
+ */
+export async function listPrices(
+  key: string,
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<Map<string, FalPrice[]>> {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += PRICES_PER_CALL) {
+    chunks.push(ids.slice(i, i + PRICES_PER_CALL));
+  }
+  const answers = await Promise.all(
+    chunks.map((chunk) =>
+      requestJson<{ prices: FalPrice[] }>(
+        `${API}/models/pricing?endpoint_id=${chunk.map(encodeURIComponent).join(",")}`,
+        { headers: auth(key), signal },
+      ).catch((error: unknown) => {
+        if (isAbort(error)) throw error;
+        return { prices: [] };
+      }),
+    ),
+  );
+  const byId = new Map<string, FalPrice[]>();
+  for (const price of answers.flatMap((answer) => answer.prices ?? [])) {
+    byId.set(price.endpoint_id, [
+      ...(byId.get(price.endpoint_id) ?? []),
+      price,
+    ]);
+  }
+  return byId;
+}
+
 export function buildBody(
   req: VideoRequest,
   extra: Record<string, string> = {},
@@ -253,7 +290,7 @@ export const fal: VideoProvider = {
     return {};
   },
 
-  async listModels(_key, signal): Promise<VideoModel[]> {
+  async listModels(key, signal): Promise<VideoModel[]> {
     const models: FalModel[] = [];
     for (const category of ["text-to-video", "image-to-video"]) {
       let cursor: string | null = null;
@@ -273,7 +310,7 @@ export const fal: VideoProvider = {
       }
     }
     const seen = new Set<string>();
-    return models
+    const usable = models
       .filter(
         (model) =>
           isUsable(model) &&
@@ -281,6 +318,15 @@ export const fal: VideoProvider = {
           seen.add(model.endpoint_id),
       )
       .map(normalizeModel);
+    const prices = await listPrices(
+      key,
+      usable.map((model) => model.id),
+      signal,
+    );
+    return usable.map((model) => ({
+      ...model,
+      pricing: pricingFromPrices(prices.get(model.id)),
+    }));
   },
 
   async inspectModel(key, model, signal): Promise<VideoModel> {

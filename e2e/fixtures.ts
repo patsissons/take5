@@ -118,9 +118,12 @@ export async function seedSetup(
 
 import falList from "../src/providers/fixtures/fal-models.json" with { type: "json" };
 import falKling from "../src/providers/fixtures/fal-openapi-kling.json" with { type: "json" };
+import falPricing from "../src/providers/fixtures/fal-pricing.json" with { type: "json" };
 import {
   normalizeModel as normalizeFal,
+  pricingFromPrices,
   type FalModel,
+  type FalPrice,
 } from "../src/providers/fal";
 import { normalizeModel as normalizeGemini } from "../src/providers/gemini";
 import { normalizeModel as normalizeXai } from "../src/providers/xai";
@@ -133,6 +136,14 @@ const KEYS: Record<ProviderId, string> = {
   gemini: "AIza-good",
   xai: "xai-good",
 };
+
+/** The fixture prices for the endpoint ids a pricing call asks about. */
+function falPrices(url: URL): FalPrice[] {
+  const ids = url.searchParams
+    .getAll("endpoint_id")
+    .flatMap((v) => v.split(","));
+  return falPricing.prices.filter((price) => ids.includes(price.endpoint_id));
+}
 
 /** Serves fal's platform API, queue and media CDN. */
 export async function stubFal(page: Page, options: { fail?: boolean } = {}) {
@@ -151,18 +162,7 @@ export async function stubFal(page: Page, options: { fail?: boolean } = {}) {
     const url = new URL(route.request().url());
     if (url.pathname === "/v1/models/pricing") {
       return authed
-        ? route.fulfill({
-            json: {
-              prices: [
-                {
-                  endpoint_id: "x",
-                  unit_price: 0.07,
-                  unit: "video_second",
-                  currency: "USD",
-                },
-              ],
-            },
-          })
+        ? route.fulfill({ json: { prices: falPrices(url) } })
         : route.fulfill({
             status: 401,
             json: { detail: "invalid key credentials" },
@@ -371,7 +371,12 @@ export async function stubXai(page: Page) {
 export function seededModels(provider: ProviderId): VideoModel[] {
   switch (provider) {
     case "fal":
-      return (falList.models as FalModel[]).map(normalizeFal);
+      return (falList.models as FalModel[]).map(normalizeFal).map((model) => ({
+        ...model,
+        pricing: pricingFromPrices(
+          falPricing.prices.filter((p) => p.endpoint_id === model.id),
+        ),
+      }));
     case "gemini":
       return [
         normalizeGemini({
