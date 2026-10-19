@@ -1,6 +1,6 @@
 import "fake-indexeddb/auto";
 import { IDBFactory } from "fake-indexeddb";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDb, listRuns } from "@/lib/history";
@@ -125,7 +125,6 @@ describe("App", () => {
     const video = await screen.findByTestId("result-video");
     expect(video.getAttribute("src")).toMatch(/^blob:/);
     expect(screen.getByTestId("cost")).toHaveTextContent("Cost $0.05");
-    expect(screen.getByText("Done").closest("li")).toHaveTextContent("Done");
 
     await waitFor(async () =>
       expect(await listRuns()).toEqual([
@@ -138,7 +137,14 @@ describe("App", () => {
     );
 
     // Remix prefills the composer with the same prompt.
-    await user.click(screen.getByRole("button", { name: "Remix" }));
+    await user.click(
+      within(screen.getByRole("region", { name: "Result" })).getByRole(
+        "button",
+        {
+          name: "Remix",
+        },
+      ),
+    );
     expect(screen.getByLabelText("Prompt")).toHaveValue("a corgi");
     expect(screen.queryByTestId("result-video")).not.toBeInTheDocument();
   });
@@ -158,5 +164,85 @@ describe("App", () => {
       "Insufficient credits",
     );
     expect(screen.getByRole("button", { name: "Generate" })).toBeEnabled();
+  });
+});
+
+describe("App history, resume and delete everything", () => {
+  const seed = () => {
+    localStorage.setItem("take5:provider", "openrouter");
+    localStorage.setItem("take5:key:openrouter", "good");
+    localStorage.setItem("take5:model:openrouter", "fake/fast");
+  };
+
+  it("resumes a run that was in flight and lists it when done", async () => {
+    seed();
+    const { putRun } = await import("@/lib/history");
+    await putRun({
+      id: "r-1",
+      provider: "openrouter",
+      modelName: "Fast",
+      request: { model: "fake/fast", prompt: "resumed", images: [] },
+      status: "running",
+      createdAt: Date.now() - 10_000,
+      job: {
+        provider: "openrouter",
+        id: "job-1",
+        model: "fake/fast",
+        submittedAt: 0,
+      },
+    });
+    render(<App />);
+    expect(await screen.findByTestId("result-video")).toBeInTheDocument();
+    expect(fake.watch).toHaveBeenCalledWith(
+      "good",
+      expect.objectContaining({ id: "job-1" }),
+      expect.anything(),
+    );
+    const list = await screen.findByRole("list", { name: "Past runs" });
+    expect(list).toHaveTextContent("resumed");
+    await waitFor(() => expect(list).toHaveTextContent("Done"));
+  });
+
+  it("deletes everything: keys, settings and runs", async () => {
+    const user = userEvent.setup();
+    seed();
+    const { putRun } = await import("@/lib/history");
+    await putRun({
+      id: "r-2",
+      provider: "openrouter",
+      modelName: "Fast",
+      request: { model: "fake/fast", prompt: "old", images: [] },
+      status: "completed",
+      createdAt: 1,
+    });
+    render(<App />);
+    expect(
+      await screen.findByRole("list", { name: "Past runs" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete everything" }));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Really delete keys, settings and videos",
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("list", { name: "Past runs" }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(getKey("openrouter")).toBeNull();
+    expect(screen.getByRole("list", { name: "Providers" })).toBeInTheDocument();
+    expect(await listRuns()).toEqual([]);
+  });
+
+  it("shows the privacy page at #privacy", async () => {
+    window.location.hash = "#privacy";
+    render(<App />);
+    expect(
+      screen.getByRole("heading", {
+        name: "What leaves this browser, and what stays",
+      }),
+    ).toBeInTheDocument();
+    window.location.hash = "";
   });
 });
