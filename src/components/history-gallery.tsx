@@ -77,7 +77,10 @@ export function HistoryGallery({
           )}
         </div>
       </div>
-      <ul aria-label="Past runs" className="grid gap-3 sm:grid-cols-2">
+      <ul
+        aria-label="Past runs"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+      >
         {runs.map((run) => (
           <li
             key={run.id}
