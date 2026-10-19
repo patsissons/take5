@@ -74,7 +74,7 @@ pnpm dev
 ## Deploy
 
 ```sh
-pnpm deploy
+pnpm run deploy
 ```
 
 Requires `wrangler login` (or `CLOUDFLARE_API_TOKEN`, e.g. in a gitignored
