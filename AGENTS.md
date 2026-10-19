@@ -69,7 +69,10 @@ Commit in small, modular units (one logical change per commit).
   the video download. The UI, `src/lib/use-run.ts` and history only ever
   see those neutral shapes. Adapters are unit-tested against recorded
   fixtures in `src/providers/fixtures/`; `e2e/fixtures.ts` serves the same
-  fixtures to the browser.
+  fixtures to the browser. A provider whose list carries no capabilities
+  (fal) implements `inspectModel`, which the model picker calls on pick and
+  whose result (field names in `VideoModel.extra`) is cached and echoed
+  back on `VideoRequest.extra` at submit time.
 - **Storage degrades, never breaks.** `src/lib/settings.ts` (local/session
   storage) and `src/lib/history.ts` (IndexedDB) swallow every storage
   error and return empty results, so the app works in private mode.
