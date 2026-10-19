@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { isAbort } from "@/providers/http";
+import { isAbort, ProviderError, sleep } from "@/providers/http";
 import type {
   JobEvent,
   JobStatus,
@@ -23,6 +23,33 @@ export interface RunState {
 
 const TERMINAL: JobStatus[] = ["completed", "failed", "cancelled"];
 
+/**
+ * Set while the page is unloading. A navigation cancels in-flight fetches
+ * with a network error (not an AbortError); without this guard the watcher
+ * would record the run as failed and lose the job it should resume later.
+ */
+let unloading = false;
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    unloading = true;
+  });
+  window.addEventListener("beforeunload", () => {
+    unloading = true;
+  });
+}
+
+function ignorable(error: unknown): boolean {
+  return isAbort(error) || unloading;
+}
+
+/** A failure to reach the provider at all, as opposed to an answer from it. */
+function isNetworkError(error: unknown): boolean {
+  return error instanceof ProviderError && error.status === undefined;
+}
+
+export const RETRY_LIMIT = 5;
+export const RETRY_MS = 3000;
+
 export function isFinished(status: JobStatus): boolean {
   return TERMINAL.includes(status);
 }
@@ -35,6 +62,7 @@ export function isFinished(status: JobStatus): boolean {
 export function useRun(
   provider: VideoProvider | undefined,
   key: string | null,
+  { retryMs = RETRY_MS }: { retryMs?: number } = {},
 ) {
   const [current, setCurrent] = useState<RunState | null>(null);
   const controller = useRef<AbortController | null>(null);
@@ -77,64 +105,83 @@ export function useRun(
             ? { status: event.status, queuePosition: event.queuePosition }
             : {}),
         }));
-      try {
-        for await (const event of provider.watch(key, run.job, signal)) {
-          push(event);
-          if (event.kind === "failed") {
-            await history.putRun({
-              ...run,
-              status: "failed",
-              finishedAt: event.at,
-              error: event.error,
-              job: undefined,
-            });
-            update({ status: "failed", error: event.error });
-            return;
+      // A lost connection is not a failed job: retry a few times before
+      // giving up, and never record anything while the page is unloading.
+      for (let attempt = 0; ; attempt++) {
+        try {
+          for await (const event of provider.watch(key, run.job, signal)) {
+            push(event);
+            if (event.kind === "failed") {
+              await history.putRun({
+                ...run,
+                status: "failed",
+                finishedAt: event.at,
+                error: event.error,
+                job: undefined,
+              });
+              update({ status: "failed", error: event.error });
+              return;
+            }
+            if (event.kind === "completed") {
+              update({ status: "running" });
+              const blob = await provider.fetchVideo(
+                key,
+                run.job,
+                event.result,
+                signal,
+              );
+              const thumbnail = await captureThumbnail(blob);
+              const finished: history.Run = {
+                ...run,
+                status: "completed",
+                finishedAt: Date.now(),
+                costUsd: event.result.costUsd,
+                thumbnail,
+                videoBytes: blob.size,
+                videoType: blob.type,
+                job: undefined,
+              };
+              await history.putVideo(run.id, blob);
+              await history.putRun(finished);
+              update({
+                run: finished,
+                status: "completed",
+                blob,
+                videoUrl: replaceUrl(blob),
+              });
+              return;
+            }
           }
-          if (event.kind === "completed") {
-            update({ status: "running" });
-            const blob = await provider.fetchVideo(
-              key,
-              run.job,
-              event.result,
-              signal,
-            );
-            const thumbnail = await captureThumbnail(blob);
-            const finished: history.Run = {
-              ...run,
-              status: "completed",
-              finishedAt: Date.now(),
-              costUsd: event.result.costUsd,
-              thumbnail,
-              videoBytes: blob.size,
-              videoType: blob.type,
-              job: undefined,
-            };
-            await history.putVideo(run.id, blob);
-            await history.putRun(finished);
-            update({
-              run: finished,
-              status: "completed",
-              blob,
-              videoUrl: replaceUrl(blob),
+          return;
+        } catch (error) {
+          if (ignorable(error)) return;
+          const message = (error as Error).message || "Something went wrong";
+          if (isNetworkError(error) && attempt < RETRY_LIMIT) {
+            push({
+              kind: "log",
+              at: Date.now(),
+              message: `${message}; retrying…`,
             });
-            return;
+            try {
+              await sleep(retryMs, signal);
+            } catch {
+              return;
+            }
+            continue;
           }
+          await history.putRun({
+            ...run,
+            status: "failed",
+            finishedAt: Date.now(),
+            error: message,
+            job: undefined,
+          });
+          update({ status: "failed", error: message });
+          return;
         }
-      } catch (error) {
-        if (isAbort(error)) return;
-        const message = (error as Error).message || "Something went wrong";
-        await history.putRun({
-          ...run,
-          status: "failed",
-          finishedAt: Date.now(),
-          error: message,
-          job: undefined,
-        });
-        update({ status: "failed", error: message });
       }
     },
-    [provider, key, update, replaceUrl],
+    [provider, key, update, replaceUrl, retryMs],
   );
 
   const start = useCallback(
@@ -166,7 +213,7 @@ export function useRun(
         }));
         await watch(submitted, abort.signal);
       } catch (error) {
-        if (isAbort(error)) return;
+        if (ignorable(error)) return;
         const message = (error as Error).message || "Could not submit the job";
         update({ status: "failed", error: message });
       }
