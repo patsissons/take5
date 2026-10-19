@@ -78,10 +78,22 @@ async function withStore<T>(
   const db = await openDb();
   if (!db) return fallback;
   try {
-    return (await done(fn(db.transaction(name, mode).objectStore(name)))) as T;
+    const transaction = db.transaction(name, mode);
+    const result = (await done(fn(transaction.objectStore(name)))) as T;
+    // A write only survives a reload once its transaction has committed.
+    if (mode === "readwrite") await committed(transaction);
+    return result;
   } catch {
     return fallback;
   }
+}
+
+function committed(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  });
 }
 
 /** Videos are stored as bytes + type: an ArrayBuffer clones everywhere. */
