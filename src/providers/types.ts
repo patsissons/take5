@@ -25,6 +25,8 @@ export interface VideoModel {
   /** Exact WIDTHxHEIGHT options, for models that take a size instead. */
   sizes: string[] | null;
   pricing: Pricing | null;
+  /** Provider-specific details the adapter needs back at submit time. */
+  extra?: Record<string, string>;
 }
 
 /** A price the UI can turn into an estimate, or a note when it cannot. */
@@ -57,6 +59,8 @@ export interface VideoRequest {
   size?: string;
   audio?: boolean;
   images: ImageInput[];
+  /** The chosen model's `extra`, echoed so the adapter has it at submit time. */
+  extra?: Record<string, string>;
 }
 
 /** Enough to find a submitted job again after a reload. */
@@ -111,6 +115,12 @@ export interface VideoProvider {
   canCancel: boolean;
   validateKey(key: string, signal?: AbortSignal): Promise<KeyInfo>;
   listModels(key: string, signal?: AbortSignal): Promise<VideoModel[]>;
+  /** Fills in capabilities and pricing for one model when the list has none. */
+  inspectModel?(
+    key: string,
+    model: VideoModel,
+    signal?: AbortSignal,
+  ): Promise<VideoModel>;
   submit(key: string, req: VideoRequest, signal?: AbortSignal): Promise<JobRef>;
   /** Live progress until a `completed` or `failed` event; hides polling vs SSE. */
   watch(

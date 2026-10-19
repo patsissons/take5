@@ -10,9 +10,10 @@ export type ProviderId = "openrouter" | "fal" | "gemini" | "xai";
 
 export const PROVIDER_HOSTS: Record<ProviderId, readonly string[]> = {
   openrouter: ["openrouter.ai"],
-  fal: ["api.fal.ai", "queue.fal.run"],
+  // Videos come back from fal's media CDN (v3.fal.media, v3b.fal.media…).
+  fal: ["api.fal.ai", "queue.fal.run", "fal.media", "*.fal.media"],
   gemini: ["generativelanguage.googleapis.com"],
-  xai: ["api.x.ai"],
+  xai: ["api.x.ai", "vidgen.x.ai"],
 };
 
 /** Every host across all providers, deduplicated and sorted. */

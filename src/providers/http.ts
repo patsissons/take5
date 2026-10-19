@@ -123,3 +123,46 @@ export function parseDataUrl(dataUrl: string): {
   if (!match) throw new ProviderError("Image must be a base64 data URL");
   return { mimeType: match[1]!, base64: match[2]! };
 }
+
+/**
+ * Reads a text/event-stream response, yielding each event's parsed `data`
+ * JSON. Plain fetch (not EventSource) so the auth header can be sent.
+ */
+export async function* sse<T = unknown>(
+  response: Response,
+  signal?: AbortSignal,
+): AsyncGenerator<T> {
+  if (!response.body) return;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const onAbort = () => reader.cancel().catch(() => undefined);
+  signal?.addEventListener("abort", onAbort, { once: true });
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let boundary: number;
+      while ((boundary = buffer.search(/\r?\n\r?\n/)) !== -1) {
+        const chunk = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary).replace(/^\r?\n\r?\n/, "");
+        const data = chunk
+          .split(/\r?\n/)
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice(5).trim())
+          .join("\n");
+        if (!data) continue;
+        try {
+          yield JSON.parse(data) as T;
+        } catch {
+          // Not JSON (a comment or keep-alive): skip it.
+        }
+      }
+    }
+    if (signal?.aborted) throw abortError();
+  } finally {
+    signal?.removeEventListener("abort", onAbort);
+    reader.releaseLock();
+  }
+}

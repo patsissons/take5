@@ -79,3 +79,22 @@ describe("parseDataUrl", () => {
     expect(() => parseDataUrl("https://x")).toThrow(ProviderError);
   });
 });
+
+describe("sse", () => {
+  it("yields each event's JSON data, skipping comments and keep-alives", async () => {
+    const { sse } = await import("./http");
+    const body = [
+      ": keep-alive\n\n",
+      'event: status\ndata: {"n":1}\n\n',
+      'data: {"n":\n',
+      "data: 2}\n\n",
+      "data: not json\n\n",
+      'data: {"n":3}',
+    ].join("");
+    const response = new Response(body);
+    const seen: unknown[] = [];
+    for await (const event of sse(response)) seen.push(event);
+    // The last event has no trailing blank line, so it is never flushed.
+    expect(seen).toEqual([{ n: 1 }, { n: 2 }]);
+  });
+});
