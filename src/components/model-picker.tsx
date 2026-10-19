@@ -1,9 +1,10 @@
-import { RefreshCw, Search } from "lucide-react";
+import { RefreshCw, Search, Trophy } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { badges } from "@/lib/model-badges";
+import { ARENA, arenaElo, rankModels } from "@/lib/model-ranking";
 import { getModelCache, setModelCache } from "@/lib/settings";
 import { customModel } from "@/lib/use-settings";
 import type { VideoModel, VideoProvider } from "@/providers/types";
@@ -87,15 +88,17 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
     if (load.status === "loading") void refresh();
   }, [load.status, refresh]);
 
+  const ranked = useMemo(() => rankModels(load.models), [load.models]);
+
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return load.models;
-    return load.models.filter(
+    if (!needle) return ranked;
+    return ranked.filter(
       (model) =>
         model.id.toLowerCase().includes(needle) ||
         model.name.toLowerCase().includes(needle),
     );
-  }, [load.models, query]);
+  }, [ranked, query]);
 
   const pickSlug = () => {
     const id = slug.trim();
@@ -166,33 +169,61 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
               Nothing matches "{query}".
             </li>
           )}
-          {visible.map((model) => (
-            <li key={model.id}>
-              <button
-                type="button"
-                aria-pressed={model.id === selected}
-                aria-busy={inspecting === model.id || undefined}
-                disabled={!!inspecting}
-                onClick={() => void pick(model)}
-                className="flex w-full cursor-pointer flex-col gap-1 rounded-md px-3 py-2 text-left hover:bg-muted aria-pressed:bg-primary/15"
-              >
-                <span className="flex flex-wrap items-baseline gap-x-2">
-                  <span className="font-medium">{model.name}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {model.id}
+          {visible.map((model) => {
+            const elo = arenaElo(model);
+            return (
+              <li key={model.id}>
+                <button
+                  type="button"
+                  aria-pressed={model.id === selected}
+                  aria-busy={inspecting === model.id || undefined}
+                  disabled={!!inspecting}
+                  onClick={() => void pick(model)}
+                  className="flex w-full cursor-pointer flex-col gap-1 rounded-md px-3 py-2 text-left hover:bg-muted aria-pressed:bg-primary/15"
+                >
+                  <span className="flex flex-wrap items-baseline gap-x-2">
+                    {elo !== undefined && (
+                      <Badge
+                        variant="outline"
+                        className="self-center"
+                        title={`Video Arena Elo, as of ${ARENA.asOf}`}
+                      >
+                        <Trophy data-icon="inline-start" aria-hidden />
+                        <span className="sr-only">Arena Elo</span>
+                        {elo}
+                      </Badge>
+                    )}
+                    <span className="font-medium">{model.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {model.id}
+                    </span>
                   </span>
-                </span>
-                <span className="flex flex-wrap gap-1">
-                  {badges(model).map((badge) => (
-                    <Badge key={badge} variant="secondary">
-                      {badge}
-                    </Badge>
-                  ))}
-                </span>
-              </button>
-            </li>
-          ))}
+                  <span className="flex flex-wrap gap-1">
+                    {badges(model).map((badge) => (
+                      <Badge key={badge} variant="secondary">
+                        {badge}
+                      </Badge>
+                    ))}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
+      )}
+      {load.models.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Ranked by{" "}
+          <a
+            href={ARENA.url}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="underline hover:text-foreground"
+          >
+            Video Arena Elo
+          </a>{" "}
+          as of {ARENA.asOf}; unranked models last.
+        </p>
       )}
 
       <form

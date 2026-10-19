@@ -88,6 +88,34 @@ describe("ModelPicker", () => {
     expect(onPick).toHaveBeenCalledWith(models[1]);
   });
 
+  it("ranks models by arena Elo, unranked last, with a badge", () => {
+    setModelCache("openrouter", [
+      ...models,
+      {
+        ...customModel("openrouter", "google/veo-3.1-lite"),
+        name: "Veo 3.1 Lite",
+      },
+      { ...customModel("openrouter", "alibaba/wan-3.0"), name: "Wan 3.0" },
+    ]);
+    render(
+      <ModelPicker
+        provider={fakeProvider(vi.fn())}
+        apiKey="k"
+        onPick={() => {}}
+      />,
+    );
+    const buttons = screen
+      .getByRole("list", { name: "Models" })
+      .querySelectorAll("button");
+    expect([...buttons].map((b) => b.textContent)).toEqual([
+      expect.stringMatching(/^Arena Elo1173Wan 3\.0/),
+      expect.stringMatching(/^Arena Elo952Veo 3\.1 Lite/),
+      expect.stringMatching(/^Onea\/one/),
+      expect.stringMatching(/^Twob\/two/),
+    ]);
+    expect(screen.getByText(/unranked models last/)).toBeInTheDocument();
+  });
+
   it("accepts a slug that is not listed", async () => {
     setModelCache("openrouter", models);
     const onPick = vi.fn();

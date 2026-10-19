@@ -29,7 +29,9 @@ sees a provider-specific shape.
    one cheap request, then kept in `localStorage`, or `sessionStorage` when
    "Remember on this device" is off), and pick a video model from the
    provider's own list (cached locally, searchable, or a slug typed by
-   hand). Later, "Change model" and "Change provider" reopen these steps
+   hand). The list is sorted best first by a bundled snapshot of the
+   [Artificial Analysis Video Arena](https://artificialanalysis.ai/video/leaderboard/text-to-video)
+   Elo, shown on each ranked model; unranked models follow. Later, "Change model" and "Change provider" reopen these steps
    from the studio, and Cancel (or Esc) goes back without changes.
 2. **Compose**: a prompt, optional reference or first/last-frame images
    (an added image is a reference when the model takes one, otherwise the
