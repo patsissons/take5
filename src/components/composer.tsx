@@ -100,9 +100,12 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
         return setImageError("This model takes no images");
       try {
         const dataUrl = await toDataUrl(file);
+        // A reference unless the model only takes frames; then the next
+        // free frame slot.
         const used = new Set(images.map((image) => image.role));
-        const role =
-          roles.find((r) => r === "reference" || !used.has(r)) ?? roles[0]!;
+        const role = roles.includes("reference")
+          ? "reference"
+          : (roles.find((r) => !used.has(r)) ?? roles[0]!);
         setImages((list) => [...list, { role, dataUrl }]);
         setImageError(null);
       } catch (error) {
@@ -167,7 +170,8 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
           onKeyDown={onKeyDown}
         />
         <p className="text-xs text-muted-foreground">
-          ⌘/Ctrl + Enter to generate. Drop or paste an image to start from it.
+          ⌘/Ctrl + Enter to generate. Drop or paste an image to use as a
+          reference.
         </p>
       </div>
 

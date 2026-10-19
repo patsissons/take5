@@ -26,7 +26,7 @@ test("prompt + image → live timeline → video, with no request leaving the al
     mimeType: "image/png",
     buffer: PIXEL,
   });
-  await expect(page.getByLabel("Image 1 role")).toHaveValue("first_frame");
+  await expect(page.getByLabel("Image 1 role")).toHaveValue("reference");
 
   await page.getByLabel("Prompt").fill("a corgi surfing");
   await page.getByLabel("Prompt").press("ControlOrMeta+Enter");
@@ -50,14 +50,14 @@ test("prompt + image → live timeline → video, with no request leaving the al
     duration: 5,
     resolution: "720p",
     aspect_ratio: "16:9",
-    frame_images: [
+    input_references: [
       {
         type: "image_url",
-        frame_type: "first_frame",
         image_url: { url: expect.stringMatching(/^data:image\/jpeg;base64,/) },
       },
     ],
   });
+  expect(submit?.body).not.toHaveProperty("frame_images");
 
   const allowed = new Set([...allHosts(), "localhost:5198"]);
   for (const host of hosts) expect(allowed).toContain(host);

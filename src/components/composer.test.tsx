@@ -5,6 +5,14 @@ import { customModel } from "@/lib/use-settings";
 import type { VideoModel } from "@/providers/types";
 import { Composer } from "./composer";
 
+// jsdom has no createImageBitmap; the resize is covered by image.test.ts.
+vi.mock("@/lib/image", async (original) => ({
+  ...(await original<typeof import("@/lib/image")>()),
+  toDataUrl: vi.fn(async () => "data:image/jpeg;base64,AAAA"),
+}));
+
+const png = () => new File(["x"], "frame.png", { type: "image/png" });
+
 const veo: VideoModel = {
   ...customModel("openrouter", "google/veo"),
   name: "Veo",
@@ -100,5 +108,34 @@ describe("Composer", () => {
     expect(screen.getByLabelText("Prompt")).toHaveValue("again");
     expect(screen.getByLabelText("Duration")).toHaveValue("6");
     expect(screen.getByLabelText("Audio")).toBeChecked();
+  });
+
+  it("adds an image as a reference when the model takes references", async () => {
+    render(<Composer model={veo} busy={false} onGenerate={() => {}} />);
+    await userEvent.upload(screen.getByLabelText("Choose an image"), png());
+    expect(await screen.findByLabelText("Image 1 role")).toHaveValue(
+      "reference",
+    );
+    await userEvent.upload(screen.getByLabelText("Choose an image"), png());
+    expect(await screen.findByLabelText("Image 2 role")).toHaveValue(
+      "reference",
+    );
+  });
+
+  it("fills frame slots in order when the model takes no references", async () => {
+    const frames = {
+      ...veo,
+      frameImages: ["first_frame", "last_frame"],
+      referenceImages: false,
+    } satisfies VideoModel;
+    render(<Composer model={frames} busy={false} onGenerate={() => {}} />);
+    await userEvent.upload(screen.getByLabelText("Choose an image"), png());
+    expect(await screen.findByLabelText("Image 1 role")).toHaveValue(
+      "first_frame",
+    );
+    await userEvent.upload(screen.getByLabelText("Choose an image"), png());
+    expect(await screen.findByLabelText("Image 2 role")).toHaveValue(
+      "last_frame",
+    );
   });
 });
