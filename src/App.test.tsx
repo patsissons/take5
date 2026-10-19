@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDb, listRuns } from "@/lib/history";
 import { REPO_URL } from "@/lib/links";
-import { clearSettings, getKey } from "@/lib/settings";
+import { clearSettings, getKey, setModelCache } from "@/lib/settings";
 import type { JobEvent, VideoProvider } from "@/providers/types";
 import App from "./App";
 
@@ -147,6 +147,42 @@ describe("App", () => {
     );
     expect(screen.getByLabelText("Prompt")).toHaveValue("a corgi");
     expect(screen.queryByTestId("result-video")).not.toBeInTheDocument();
+  });
+
+  it("backs out of Change model and Change provider without changes", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("take5:provider", "openrouter");
+    localStorage.setItem("take5:key:openrouter", "good");
+    localStorage.setItem("take5:model:openrouter", "fake/fast");
+    setModelCache("openrouter", await fake.listModels("good"));
+    render(<App />);
+    expect(screen.getByTestId("studio-bar")).toHaveTextContent(
+      "FakeRouter · Fast",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Change model" }));
+    expect(await screen.findByRole("list", { name: "Models" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByTestId("studio-bar")).toHaveTextContent(
+      "FakeRouter · Fast",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Change provider" }));
+    await user.click(screen.getByRole("button", { name: /FakeRouter/ }));
+    expect(screen.getByLabelText("API key")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.getByTestId("studio-bar")).toHaveTextContent(
+      "FakeRouter · Fast",
+    );
+    expect(getKey("openrouter")).toBe("good");
+  });
+
+  it("offers no way out of the first-run setup", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("list", { name: "Providers" })).toBeInTheDocument();
   });
 
   it("surfaces a submit failure and lets the visitor retry", async () => {

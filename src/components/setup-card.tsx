@@ -1,5 +1,5 @@
-import { ExternalLink } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { ExternalLink, X } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ModelPicker } from "@/components/model-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,8 @@ interface Props {
   step: SetupStep;
   onStep: (step: SetupStep) => void;
   onDone: (model: VideoModel) => void;
+  /** Back to the studio unchanged; only offered once setup was complete. */
+  onCancel?: () => void;
 }
 
 const STEPS: Array<{ id: SetupStep; title: string }> = [
@@ -31,39 +33,62 @@ export function SetupCard({
   step,
   onStep,
   onDone,
+  onCancel,
 }: Props) {
   const provider = providers.find((p) => p.id === settings.provider);
   const index = STEPS.findIndex((s) => s.id === step);
+
+  useEffect(() => {
+    if (!onCancel) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) onCancel();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onCancel]);
 
   return (
     <section
       aria-labelledby="setup-title"
       className="rounded-xl border bg-card p-5 sm:p-6"
     >
-      <ol className="mb-5 flex gap-2 text-sm" aria-label="Setup steps">
-        {STEPS.map((s, i) => (
-          <li
-            key={s.id}
-            aria-current={s.id === step ? "step" : undefined}
-            className={`flex items-center gap-2 ${
-              i <= index ? "text-foreground" : "text-muted-foreground"
-            }`}
-          >
-            <span
-              className={`inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
-                i < index
-                  ? "bg-primary text-primary-foreground"
-                  : i === index
-                    ? "border-2 border-primary"
-                    : "border"
+      <div className="mb-5 flex items-start justify-between gap-2">
+        <ol className="flex flex-wrap gap-2 text-sm" aria-label="Setup steps">
+          {STEPS.map((s, i) => (
+            <li
+              key={s.id}
+              aria-current={s.id === step ? "step" : undefined}
+              className={`flex items-center gap-2 ${
+                i <= index ? "text-foreground" : "text-muted-foreground"
               }`}
             >
-              {i + 1}
-            </span>
-            {s.title}
-          </li>
-        ))}
-      </ol>
+              <span
+                className={`inline-flex size-6 items-center justify-center rounded-full text-xs font-semibold ${
+                  i < index
+                    ? "bg-primary text-primary-foreground"
+                    : i === index
+                      ? "border-2 border-primary"
+                      : "border"
+                }`}
+              >
+                {i + 1}
+              </span>
+              {s.title}
+            </li>
+          ))}
+        </ol>
+        {onCancel && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            title="Back to the studio without changes (Esc)"
+            onClick={onCancel}
+          >
+            <X data-icon="inline-start" /> Cancel
+          </Button>
+        )}
+      </div>
 
       {step === "provider" && (
         <>
