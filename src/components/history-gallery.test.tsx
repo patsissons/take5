@@ -11,6 +11,7 @@ const run = (id: string, over: Partial<Run> = {}): Run => ({
   request: { model: "m", prompt: `prompt ${id}`, duration: 5, images: [] },
   status: "completed",
   createdAt: 1_700_000_000_000,
+  finishedAt: 1_700_000_042_000,
   costUsd: 0.1,
   videoBytes: 2_500_000,
   ...over,
@@ -56,7 +57,7 @@ describe("HistoryGallery", () => {
     expect(items[0]).toHaveAttribute("aria-current", "true");
     expect(items[0]).toHaveTextContent("OpenRouter · Veo · 5s");
     expect(items[0]).toHaveTextContent("Done");
-    expect(items[0]).toHaveTextContent("$0.10 · 2.5 MB");
+    expect(items[0]).toHaveTextContent("$0.10 · 42s · 2.5 MB");
     expect(items[1]).toHaveTextContent("Failed");
     expect(screen.getByTestId("storage-meter")).toHaveTextContent(
       "12.3 MB used on this device",

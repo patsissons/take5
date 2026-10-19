@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/cost";
 import { videoFileName, type Run } from "@/lib/history";
+import { runDuration } from "@/lib/time";
 
 interface Props {
   run: Run;
@@ -13,6 +14,7 @@ interface Props {
 /** The finished clip with download, copy-prompt and remix. */
 export function ResultView({ run, videoUrl, onRemix }: Props) {
   const [copied, setCopied] = useState(false);
+  const took = runDuration(run);
 
   const copyPrompt = async () => {
     try {
@@ -61,6 +63,7 @@ export function ResultView({ run, videoUrl, onRemix }: Props) {
           {run.costUsd !== undefined
             ? `Cost ${formatUsd(run.costUsd)}`
             : "Cost not reported"}
+          {took ? ` · took ${took}` : ""}
           {run.videoBytes
             ? ` · ${(run.videoBytes / 1_000_000).toFixed(1)} MB`
             : ""}
