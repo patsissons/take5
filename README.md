@@ -31,7 +31,9 @@ sees a provider-specific shape.
    provider's own list (cached locally, searchable, or a slug typed by
    hand). The list is sorted best first by a bundled snapshot of the
    [Artificial Analysis Video Arena](https://artificialanalysis.ai/video/leaderboard/text-to-video)
-   Elo, shown on each ranked model; unranked models follow. Later, "Change model" and "Change provider" reopen these steps
+   Elo, shown on each ranked model; unranked models follow. A two-thumb
+   slider narrows the list by the cost of the cheapest 5 s clip (models
+   without a listed price drop out once it is narrowed). Later, "Change model" and "Change provider" reopen these steps
    from the studio, and Cancel (or Esc) goes back without changes.
 2. **Compose**: a prompt, optional reference or first/last-frame images
    (an added image is a reference when the model takes one, otherwise the

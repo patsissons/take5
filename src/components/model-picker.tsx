@@ -3,7 +3,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { formatUsd } from "@/lib/cost";
+import { DEFAULT_DURATION } from "@/lib/composer-defaults";
 import { badges } from "@/lib/model-badges";
+import { COST_STEPS, costAt, costBounds, inCostRange } from "@/lib/model-cost";
 import { ARENA, arenaElo, rankModels } from "@/lib/model-ranking";
 import { getModelCache, setModelCache } from "@/lib/settings";
 import { customModel } from "@/lib/use-settings";
@@ -90,15 +94,28 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
 
   const ranked = useMemo(() => rankModels(load.models), [load.models]);
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle) return ranked;
-    return ranked.filter(
-      (model) =>
+  // The cost slider's thumbs, remembered with the bounds they were set
+  // against so a refreshed list with other prices starts from the full range.
+  const bounds = useMemo(() => costBounds(load.models), [load.models]);
+  const boundsKey = bounds ? `${bounds.min}:${bounds.max}` : "";
+  const [cost, setCost] = useState<{ key: string; steps: number[] } | null>(
+    null,
+  );
+  const steps = cost?.key === boundsKey ? cost.steps : [0, COST_STEPS];
+  const narrowed = !!bounds && (steps[0]! > 0 || steps[1]! < COST_STEPS);
+  const range =
+    bounds && narrowed
+      ? { min: costAt(steps[0]!, bounds), max: costAt(steps[1]!, bounds) }
+      : null;
+
+  const needle = query.trim().toLowerCase();
+  const visible = ranked.filter(
+    (model) =>
+      inCostRange(model, range) &&
+      (!needle ||
         model.id.toLowerCase().includes(needle) ||
-        model.name.toLowerCase().includes(needle),
-    );
-  }, [ranked, query]);
+        model.name.toLowerCase().includes(needle)),
+  );
 
   const pickSlug = () => {
     const id = slug.trim();
@@ -138,6 +155,42 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
         </Button>
       </div>
 
+      {bounds && (
+        <div className="grid gap-2" role="group" aria-labelledby="cost-label">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+            <span id="cost-label">Cost per {DEFAULT_DURATION}s clip</span>
+            <span
+              className="text-muted-foreground tabular-nums"
+              data-testid="cost-range"
+            >
+              {formatUsd(range?.min ?? bounds.min)} –{" "}
+              {formatUsd(range?.max ?? bounds.max)}
+            </span>
+          </div>
+          <Slider
+            min={0}
+            max={COST_STEPS}
+            step={1}
+            value={steps}
+            thumbLabels={["Lowest cost", "Highest cost"]}
+            onValueChange={(value) => setCost({ key: boundsKey, steps: value })}
+          />
+          {narrowed && (
+            <p className="text-xs text-muted-foreground">
+              Showing {visible.length} of {load.models.length}; models without a
+              listed price are hidden.{" "}
+              <button
+                type="button"
+                className="cursor-pointer underline hover:text-foreground"
+                onClick={() => setCost(null)}
+              >
+                Any cost
+              </button>
+            </p>
+          )}
+        </div>
+      )}
+
       {load.status === "error" && (
         <p role="alert" className="text-sm text-destructive">
           Couldn't load models: {load.error}
@@ -166,7 +219,9 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
         >
           {visible.length === 0 && (
             <li className="p-3 text-sm text-muted-foreground">
-              Nothing matches "{query}".
+              {query.trim()
+                ? `Nothing matches "${query}"${narrowed ? " at that cost" : ""}.`
+                : "No model costs that much or that little."}
             </li>
           )}
           {visible.map((model) => {

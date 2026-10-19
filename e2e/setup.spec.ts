@@ -95,3 +95,23 @@ test("changing provider can be cancelled back to the studio", async ({
   await page.keyboard.press("Escape");
   await expect(bar).toContainText("OpenRouter");
 });
+
+test("the model list is ranked and narrows by cost", async ({ page }) => {
+  await stubOpenRouter(page);
+  await seedSetup(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Change model" }).click();
+
+  const models = page.getByRole("list", { name: "Models" });
+  await expect(models.getByRole("button")).toHaveCount(5);
+  await expect(models.getByRole("button").first()).toContainText("Arena Elo");
+
+  await page.getByRole("slider", { name: "Highest cost" }).focus();
+  await page.keyboard.press("PageDown");
+  await page.keyboard.press("PageDown");
+  await expect(page.getByText(/^Showing \d of 5/)).toBeVisible();
+  expect(await models.getByRole("button").count()).toBeLessThan(5);
+
+  await page.getByRole("button", { name: "Any cost" }).click();
+  await expect(models.getByRole("button")).toHaveCount(5);
+});
