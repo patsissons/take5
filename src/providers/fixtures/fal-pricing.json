@@ -1,0 +1,24 @@
+{
+  "prices": [
+    {
+      "endpoint_id": "fal-ai/minimax/hailuo-02/standard/text-to-video",
+      "unit_price": 0.045,
+      "unit": "video_second",
+      "currency": "USD"
+    },
+    {
+      "endpoint_id": "fal-ai/kling-video/v3/pro/image-to-video",
+      "unit_price": 0.07,
+      "unit": "video_second",
+      "currency": "USD"
+    },
+    {
+      "endpoint_id": "fal-ai/wan/v2.2-a14b/text-to-video",
+      "unit_price": 0.4,
+      "unit": "video",
+      "currency": "USD"
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}

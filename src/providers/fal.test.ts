@@ -3,6 +3,7 @@ import hailuo from "./fixtures/fal-openapi-hailuo.json";
 import kling from "./fixtures/fal-openapi-kling.json";
 import wan from "./fixtures/fal-openapi-wan.json";
 import list from "./fixtures/fal-models.json";
+import prices from "./fixtures/fal-pricing.json";
 import {
   applySchema,
   buildBody,
@@ -10,6 +11,7 @@ import {
   inputSchema,
   isUsable,
   normalizeModel,
+  listPrices,
   pricingFromPrices,
   type FalModel,
   type JsonSchema,
@@ -220,13 +222,69 @@ describe("fal", () => {
         next_cursor: null,
         has_more: false,
       }),
+      Response.json(prices),
     );
     const models = await fal.listModels("k");
     expect(
-      calls.map((c) => new URL(c.url).searchParams.get("category")),
+      calls.slice(0, 3).map((c) => new URL(c.url).searchParams.get("category")),
     ).toEqual(["text-to-video", "text-to-video", "image-to-video"]);
     expect(calls[1]!.url).toContain("cursor=c2");
     expect(models).toHaveLength(4);
+
+    // One authenticated pricing call for every listed endpoint.
+    const pricing = new URL(calls[3]!.url);
+    expect(pricing.pathname).toBe("/v1/models/pricing");
+    expect(pricing.searchParams.get("endpoint_id")!.split(",")).toEqual(
+      models.map((model) => model.id),
+    );
+    expect(calls[3]!.init?.headers).toEqual({ authorization: "Key k" });
+    expect(Object.fromEntries(models.map((m) => [m.id, m.pricing]))).toEqual({
+      "fal-ai/minimax/hailuo-02/standard/text-to-video": {
+        kind: "per-second",
+        rates: [{ usdPerSecond: 0.045 }],
+      },
+      "fal-ai/kling-video/v3/pro/image-to-video": {
+        kind: "per-second",
+        rates: [{ usdPerSecond: 0.07 }],
+      },
+      "fal-ai/wan/v2.2-a14b/text-to-video": { kind: "per-video", usd: 0.4 },
+      "minimax/h3-max/text-to-video": null,
+    });
+  });
+
+  it("asks for prices fifty endpoints at a time and survives a failed chunk", async () => {
+    const ids = Array.from({ length: 120 }, (_, i) => `fal-ai/m${i}`);
+    const calls = mockFetch(
+      Response.json({
+        prices: [
+          {
+            endpoint_id: "fal-ai/m0",
+            unit_price: 0.1,
+            unit: "video_second",
+            currency: "USD",
+          },
+        ],
+      }),
+      new Response("down", { status: 500 }),
+      Response.json({
+        prices: [
+          {
+            endpoint_id: "fal-ai/m119",
+            unit_price: 1,
+            unit: "video",
+            currency: "USD",
+          },
+        ],
+      }),
+    );
+    const byId = await listPrices("k", ids);
+    expect(
+      calls.map(
+        (c) =>
+          new URL(c.url).searchParams.get("endpoint_id")!.split(",").length,
+      ),
+    ).toEqual([50, 50, 20]);
+    expect([...byId.keys()]).toEqual(["fal-ai/m0", "fal-ai/m119"]);
   });
 
   it("inspects a model from its OpenAPI schema and price", async () => {

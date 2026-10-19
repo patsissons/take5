@@ -70,7 +70,8 @@ Commit in small, modular units (one logical change per commit).
   see those neutral shapes. Adapters are unit-tested against recorded
   fixtures in `src/providers/fixtures/`; `e2e/fixtures.ts` serves the same
   fixtures to the browser. A provider whose list carries no capabilities
-  (fal) implements `inspectModel`, which the model picker calls on pick and
+  (fal; its prices are batch-fetched with the list, fifty endpoints per
+  pricing call, so the picker can filter by cost) implements `inspectModel`, which the model picker calls on pick and
   whose result (field names in `VideoModel.extra`) is cached and echoed
   back on `VideoRequest.extra` at submit time.
 - **Model ranking is a bundled snapshot.** `src/lib/model-ranking.ts`
