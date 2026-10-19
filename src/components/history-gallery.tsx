@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/cost";
 import type { Run } from "@/lib/history";
+import { runDuration } from "@/lib/time";
 import { formatBytes } from "@/lib/use-history";
 import { providerById } from "@/providers";
 
@@ -129,6 +130,7 @@ export function HistoryGallery({
                 {run.costUsd !== undefined
                   ? ` · ${formatUsd(run.costUsd)}`
                   : ""}
+                {run.finishedAt ? ` · ${runDuration(run)}` : ""}
                 {run.videoBytes ? ` · ${formatBytes(run.videoBytes)}` : ""}
               </p>
               <div className="mt-auto flex gap-1">

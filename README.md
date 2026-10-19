@@ -41,8 +41,10 @@ sees a provider-specific shape.
    (submitted, queued, generating, done), an elapsed clock and the raw
    provider events. A reload resumes watching.
 4. **Result**: the clip plays from a blob kept in IndexedDB (so it outlives
-   the provider's URL), with download, copy prompt and remix.
-5. **History**: every run (prompt, settings, thumbnail, cost, video) is
+   the provider's URL), with download, copy prompt and remix, and the cost
+   next to how long the generation took.
+5. **History**: every run (prompt, settings, thumbnail, cost, generation time,
+   video) is
    listed below the composer with a storage meter, per-run delete and clear
    all. "Delete everything" (footer, and the Privacy page at `#privacy`)
    wipes keys, settings and the database.
