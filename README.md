@@ -2,7 +2,7 @@
 
 Five-second AI videos, straight from your browser, served at
 <https://take5.lgtm.page>. Pick a provider, paste your own API key, choose a
-video model, describe the clip (optionally with a first-frame image), watch
+video model, describe the clip (optionally with a reference image), watch
 the job run and get the video back.
 
 There is no server. Every request goes from your browser directly to the
@@ -30,8 +30,10 @@ sees a provider-specific shape.
    "Remember on this device" is off), and pick a video model from the
    provider's own list (cached locally, searchable, or a slug typed by
    hand).
-2. **Compose**: a prompt, optional first/last-frame or reference images
-   (downscaled in the browser and sent inline as data URLs), and the
+2. **Compose**: a prompt, optional reference or first/last-frame images
+   (an added image is a reference when the model takes one, otherwise the
+   next free frame; downscaled in the browser and sent inline as data
+   URLs), and the
    controls the model supports: duration (defaults to the supported value
    nearest 5 s), resolution, aspect ratio or size, audio. The estimated
    cost shows when the model lists a per-second price.
