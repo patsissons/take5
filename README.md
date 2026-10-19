@@ -23,6 +23,24 @@ everything else.
 Each adapter in `src/providers/` implements the same interface; the UI never
 sees a provider-specific shape.
 
+## How a run works
+
+1. **Setup** (first run): pick a provider, paste its API key (checked with
+   one cheap request, then kept in `localStorage`, or `sessionStorage` when
+   "Remember on this device" is off), and pick a video model from the
+   provider's own list (cached locally, searchable, or a slug typed by
+   hand).
+2. **Compose**: a prompt, optional first/last-frame or reference images
+   (downscaled in the browser and sent inline as data URLs), and the
+   controls the model supports: duration (defaults to the supported value
+   nearest 5 s), resolution, aspect ratio or size, audio. The estimated
+   cost shows when the model lists a per-second price.
+3. **Run**: the job is submitted and watched live, with a timeline
+   (submitted, queued, generating, done), an elapsed clock and the raw
+   provider events. A reload resumes watching.
+4. **Result**: the clip plays from a blob kept in IndexedDB (so it outlives
+   the provider's URL), with download, copy prompt and remix.
+
 ## Privacy, enforced
 
 - `src/providers/hosts.ts` lists every host the app may contact.

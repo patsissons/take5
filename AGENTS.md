@@ -62,8 +62,20 @@ Commit in small, modular units (one logical change per commit).
   remembered in `localStorage`.
 - Mobile-friendly: page padding comes from the `safe-x` utility in
   `index.css`; `e2e/home.spec.ts` guards against horizontal scroll.
+- **Provider adapters are the only provider-specific code.** Each file in
+  `src/providers/` implements `VideoProvider` (`types.ts`): key check,
+  model list (normalised to `VideoModel`, pricing included), submit, a
+  `watch` generator that hides polling vs streaming behind `JobEvent`s, and
+  the video download. The UI, `src/lib/use-run.ts` and history only ever
+  see those neutral shapes. Adapters are unit-tested against recorded
+  fixtures in `src/providers/fixtures/`; `e2e/fixtures.ts` serves the same
+  fixtures to the browser.
+- **Storage degrades, never breaks.** `src/lib/settings.ts` (local/session
+  storage) and `src/lib/history.ts` (IndexedDB) swallow every storage
+  error and return empty results, so the app works in private mode.
 - E2e is hermetic: specs stub every provider host with `page.route` and
-  never reach the network.
+  never reach the network. `seedSetup` skips the setup card by writing the
+  provider, key, model and cached model list straight into localStorage.
 - **Free to operate.** Cloudflare free tier only.
 
 ## Gotchas
@@ -81,5 +93,12 @@ Commit in small, modular units (one logical change per commit).
   system theme; tests that need another answer redefine `window.matchMedia`.
 - lucide-react has no brand icons; the GitHub mark is
   `src/components/github-icon.tsx`.
+- React StrictMode runs effects twice in dev; an effect that fetches must
+  guard with a ref (see `model-picker.tsx`) or e2e sees doubled requests.
+- The dev server runs `vite dev`; Playwright's WebKit answers a
+  `page.route` that matches a URL before the CSP check runs, so never stub
+  a host in a test that expects the CSP to block it.
+- Component files export components only (`react-refresh/only-export-components`);
+  helpers live in `src/lib/` so tests can import them without rendering.
 - Vite warns that `/theme-init.js` "can't be bundled without type=module";
   that is intended (it must run before the module graph loads).
