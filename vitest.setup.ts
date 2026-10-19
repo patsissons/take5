@@ -53,3 +53,24 @@ if (typeof window !== "undefined") {
     });
   }
 }
+
+// jsdom has no object URLs; the run hook needs them for the video player.
+if (typeof URL.createObjectURL !== "function") {
+  let next = 0;
+  URL.createObjectURL = () => `blob:test/${next++}`;
+  URL.revokeObjectURL = () => {};
+}
+
+// jsdom has no ResizeObserver (shadcn's textarea measures itself with one).
+if (typeof ResizeObserver === "undefined") {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(globalThis, "ResizeObserver", {
+    configurable: true,
+    writable: true,
+    value: ResizeObserverStub,
+  });
+}
