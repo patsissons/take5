@@ -61,6 +61,37 @@ describe("RunView", () => {
     expect(screen.getByText("Raw events (3)")).toBeInTheDocument();
   });
 
+  it("lays the raw events out as a table, payloads expandable", async () => {
+    const createdAt = Date.now() - 20_000;
+    render(
+      <RunView
+        state={state({
+          run: { ...state({}).run, createdAt },
+          events: [
+            {
+              kind: "status",
+              at: createdAt + 2_000,
+              status: "queued",
+              queuePosition: 4,
+              raw: { status: "IN_QUEUE" },
+            },
+            { kind: "log", at: createdAt + 9_000, message: "rendering" },
+          ],
+        })}
+        canCancel
+        onCancel={() => {}}
+      />,
+    );
+    await userEvent.click(screen.getByText("Raw events (2)"));
+    const rows = screen.getAllByRole("row");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "TimeEventDetailPayload",
+      '+2squeued#4{"status":"IN_QUEUE"}{\n  "status": "IN_QUEUE"\n}',
+      "+9slogrendering",
+    ]);
+    expect(screen.getByRole("cell", { name: "rendering" })).toBeVisible();
+  });
+
   it("offers a real cancel when the provider supports it", async () => {
     const onCancel = vi.fn();
     render(<RunView state={state({})} canCancel onCancel={onCancel} />);

@@ -1,6 +1,8 @@
 import { Check, CircleDashed, Loader2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { eventRow } from "@/lib/run-events";
 import type { RunState } from "@/lib/use-run";
 import { isFinished } from "@/lib/use-run";
 import { formatElapsed } from "@/lib/time";
@@ -103,19 +105,64 @@ export function RunView({ state, canCancel, onCancel }: Props) {
         </p>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <details className="text-xs">
+      <div className="mt-3 flex items-start justify-between gap-3">
+        <details className="min-w-0 flex-1 text-xs">
           <summary className="cursor-pointer text-muted-foreground">
             Raw events ({state.events.length})
           </summary>
-          <pre className="mt-2 max-h-60 overflow-auto rounded-md bg-muted p-2 whitespace-pre-wrap">
-            {state.events
-              .map(
-                (event) =>
-                  `${new Date(event.at).toLocaleTimeString()} ${describe(event)}`,
-              )
-              .join("\n")}
-          </pre>
+          <div className="mt-2 max-h-72 overflow-auto rounded-md border">
+            <table className="w-full min-w-[32rem] text-left">
+              <thead className="sticky top-0 bg-muted text-muted-foreground">
+                <tr>
+                  <th className="px-2 py-1.5 font-medium">Time</th>
+                  <th className="px-2 py-1.5 font-medium">Event</th>
+                  <th className="px-2 py-1.5 font-medium">Detail</th>
+                  <th className="px-2 py-1.5 font-medium">Payload</th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.events.map((event, i) => {
+                  const row = eventRow(event, state.run.createdAt);
+                  return (
+                    <tr key={i} className="border-t align-top">
+                      <td
+                        className="px-2 py-1.5 whitespace-nowrap tabular-nums text-muted-foreground"
+                        title={row.time}
+                      >
+                        {row.offset}
+                      </td>
+                      <td className="px-2 py-1.5">
+                        <Badge
+                          variant={
+                            row.tone === "failed"
+                              ? "destructive"
+                              : row.tone === "done"
+                                ? "default"
+                                : "secondary"
+                          }
+                        >
+                          {row.label}
+                        </Badge>
+                      </td>
+                      <td className="px-2 py-1.5 break-words">{row.detail}</td>
+                      <td className="px-2 py-1.5">
+                        {row.payload && (
+                          <details className="max-w-80">
+                            <summary className="cursor-pointer truncate font-mono text-muted-foreground">
+                              {row.payload.line}
+                            </summary>
+                            <pre className="mt-1 overflow-x-auto rounded bg-muted p-2 font-mono">
+                              {row.payload.pretty}
+                            </pre>
+                          </details>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </details>
         {!finished && (
           <Button type="button" variant="outline" size="sm" onClick={onCancel}>
@@ -135,26 +182,4 @@ function lastProgress(state: RunState): JobStatus {
     }
   }
   return "submitted";
-}
-
-function describe(event: RunState["events"][number]): string {
-  switch (event.kind) {
-    case "status":
-      return `${event.status}${event.queuePosition !== undefined ? ` #${event.queuePosition}` : ""}${event.detail ? ` ${event.detail}` : ""}${raw(event.raw)}`;
-    case "log":
-      return `log: ${event.message}`;
-    case "completed":
-      return `completed${raw(event.raw)}`;
-    case "failed":
-      return `failed: ${event.error}${raw(event.raw)}`;
-  }
-}
-
-function raw(value: unknown): string {
-  if (value === undefined) return "";
-  try {
-    return ` ${JSON.stringify(value)}`;
-  } catch {
-    return "";
-  }
 }

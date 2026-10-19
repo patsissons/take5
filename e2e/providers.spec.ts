@@ -35,7 +35,7 @@ test("fal: pick inspects the model, then the queue streams logs to a result", as
     { timeout: 15_000 },
   );
   await progress.getByText(/Raw events/).click();
-  await expect(progress.getByText("log: rendering")).toBeVisible();
+  await expect(progress.getByRole("cell", { name: "rendering" })).toBeVisible();
 
   const submit = stub.requests.find((r) => r.method === "POST")!;
   expect(submit.path).toBe("/fal-ai/kling-video/v3/pro/image-to-video");
