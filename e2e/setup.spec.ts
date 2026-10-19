@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { stubOpenRouter } from "./fixtures";
+import { seedSetup, stubOpenRouter } from "./fixtures";
 
 test("first run: provider, key (checked first), then model", async ({
   page,
@@ -70,4 +70,28 @@ test("a key not remembered on the device lives in the session only", async ({
       sessionStorage.getItem("take5:key:openrouter"),
     ]),
   ).toEqual([null, "sk-or-v1-good"]);
+});
+
+test("changing provider can be cancelled back to the studio", async ({
+  page,
+}) => {
+  await stubOpenRouter(page);
+  await seedSetup(page);
+  await page.goto("/");
+  const bar = page.getByTestId("studio-bar");
+  await expect(bar).toContainText("OpenRouter");
+
+  await page.getByRole("button", { name: "Change provider" }).click();
+  await page.getByRole("button", { name: /^fal/ }).click();
+  await expect(page.getByLabel("API key", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(bar).toContainText("OpenRouter");
+  expect(
+    await page.evaluate(() => localStorage.getItem("take5:provider")),
+  ).toBe("openrouter");
+
+  await page.getByRole("button", { name: "Change model" }).click();
+  await expect(page.getByRole("list", { name: "Models" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(bar).toContainText("OpenRouter");
 });

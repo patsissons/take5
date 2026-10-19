@@ -18,6 +18,7 @@ import { useHistory } from "@/lib/use-history";
 import { isFinished, useRun } from "@/lib/use-run";
 import { resolveModel, useSettings } from "@/lib/use-settings";
 import { providerById, providers } from "@/providers";
+import type { ProviderId } from "@/providers/hosts";
 import type { VideoModel, VideoRequest } from "@/providers/types";
 
 export default function App() {
@@ -30,6 +31,9 @@ export default function App() {
   const [setup, setSetup] = useState<SetupStep | null>(() =>
     ready ? null : "provider",
   );
+  // The provider to go back to when a visitor backs out of "Change model"
+  // or "Change provider" from the studio.
+  const [returnTo, setReturnTo] = useState<ProviderId | null>(null);
   const [remix, setRemix] = useState<Partial<VideoRequest> | undefined>();
   const model = useMemo<VideoModel | undefined>(
     () =>
@@ -77,10 +81,24 @@ export default function App() {
     [provider?.id, settings, run],
   );
 
+  const change = (step: SetupStep) => {
+    if (provider) setReturnTo(provider.id);
+    setSetup(step);
+  };
+
+  const cancelSetup = useCallback(() => {
+    if (returnTo && returnTo !== settings.provider) {
+      settings.chooseProvider(returnTo);
+    }
+    setReturnTo(null);
+    setSetup(null);
+  }, [returnTo, settings]);
+
   const deleteEverything = useCallback(async () => {
     run.clear();
     await deleteDatabase();
     settings.reset();
+    setReturnTo(null);
     setSetup("provider");
     history.forget();
     window.location.hash = "";
@@ -118,7 +136,11 @@ export default function App() {
               settings={settings}
               step={setup ?? "provider"}
               onStep={setSetup}
-              onDone={() => setSetup(null)}
+              onDone={() => {
+                setReturnTo(null);
+                setSetup(null);
+              }}
+              onCancel={returnTo ? cancelSetup : undefined}
             />
           ) : (
             <>
@@ -139,7 +161,7 @@ export default function App() {
                   type="button"
                   variant="link"
                   size="xs"
-                  onClick={() => setSetup("model")}
+                  onClick={() => change("model")}
                 >
                   Change model
                 </Button>
@@ -147,7 +169,7 @@ export default function App() {
                   type="button"
                   variant="link"
                   size="xs"
-                  onClick={() => setSetup("provider")}
+                  onClick={() => change("provider")}
                 >
                   Change provider
                 </Button>
@@ -198,7 +220,7 @@ export default function App() {
               estimate={history.estimate}
               currentId={run.current?.run.id}
               onOpen={(r) => {
-                setSetup(null);
+                cancelSetup();
                 void run.show(r);
                 window.scrollTo({ top: 0 });
               }}
