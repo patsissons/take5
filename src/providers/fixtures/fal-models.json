@@ -1,0 +1,123 @@
+{
+  "models": [
+    {
+      "endpoint_id": "fal-ai/minimax/hailuo-02/standard/text-to-video",
+      "metadata": {
+        "display_name": "MiniMax Hailuo 02 [Standard] (Text to Video)",
+        "category": "text-to-video",
+        "description": "MiniMax Hailuo-02 Text To Video API (Standard, 768p): Advanced video generation model with 768p resolution",
+        "status": "active",
+        "tags": [],
+        "updated_at": "2026-04-21T17:52:01.991Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://storage.googleapis.com/fal_cdn/fal/for%20videos-1.jpg",
+        "model_url": "https://fal.run/fal-ai/minimax/hailuo-02/standard/text-to-video",
+        "license_type": "commercial",
+        "date": "2025-06-18T00:40:08.840Z",
+        "group": {
+          "key": "hailuo-02",
+          "label": "Text to Video (standard) "
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "duration_estimate": 4,
+        "pinned": false
+      }
+    },
+    {
+      "endpoint_id": "fal-ai/kling-video/v3/pro/image-to-video",
+      "metadata": {
+        "display_name": "Kling Video v3 Image to Video [Pro]",
+        "category": "image-to-video",
+        "description": "Kling 3.0 Pro: Top-tier image-to-video with cinematic visuals, fluid motion, and native audio generation, with custom element support.",
+        "status": "active",
+        "tags": ["image-to-video"],
+        "updated_at": "2026-05-29T18:50:02.672Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://v3b.fal.media/files/b/0a9c2fb3/yPzcdzINnY5RdSoEqHc8G_382d4ec9337344ccaacf5599057f6cd0.jpg",
+        "model_url": "https://fal.run/fal-ai/kling-video/v3/pro/image-to-video",
+        "license_type": "commercial",
+        "date": "2026-02-04T15:48:44.935Z",
+        "group": {
+          "key": "kling-v3",
+          "label": "Image to Video (pro)"
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      }
+    },
+    {
+      "endpoint_id": "fal-ai/wan/v2.2-a14b/text-to-video",
+      "metadata": {
+        "display_name": "Wan-2.2 Text-to-Video A14B",
+        "category": "text-to-video",
+        "description": "Wan-2.2 text-to-video is a video model that generates high-quality videos with high visual quality and motion diversity from text prompts. ",
+        "status": "active",
+        "tags": ["text to video", "motion"],
+        "updated_at": "2026-04-21T17:56:29.422Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://storage.googleapis.com/fal_cdn/fal/for%20videos-4.jpg",
+        "model_url": "https://fal.run/fal-ai/wan/v2.2-a14b/text-to-video",
+        "license_type": "commercial",
+        "date": "2025-07-28T16:14:33.355Z",
+        "group": {
+          "key": "wan-v22-large",
+          "label": "Text to Video"
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      }
+    },
+    {
+      "endpoint_id": "minimax/h3-max/text-to-video",
+      "metadata": {
+        "display_name": "MiniMax H3 Max Text to Video",
+        "category": "text-to-video",
+        "description": "fal's H3 Max is a post-trained variant of MiniMax H3, tuned for stronger prompt adherence and better aesthetics while co-optimized with our custom inference sta",
+        "status": "active",
+        "tags": ["stylized", "transform", "lipsync"],
+        "updated_at": "2026-10-19T14:48:03.522Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://v3b.fal.media/files/b/0aa7657e/LlavC7cCdZ_GGyvyglA82.jpg",
+        "model_url": "https://fal.run/minimax/h3-max/text-to-video",
+        "license_type": "commercial",
+        "date": "2026-08-23T17:56:01.222Z",
+        "group": {
+          "key": "hailuo-03-new-turbo",
+          "label": "Text to Video"
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      }
+    },
+    {
+      "endpoint_id": "fal-ai/old-model",
+      "metadata": {
+        "display_name": "Old Model",
+        "category": "text-to-video",
+        "description": "MiniMax Hailuo-02 Text To Video API (Standard, 768p): Advanced video generation model with 768p resolution",
+        "status": "deprecated",
+        "tags": [],
+        "updated_at": "2026-04-21T17:52:01.991Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://storage.googleapis.com/fal_cdn/fal/for%20videos-1.jpg",
+        "model_url": "https://fal.run/fal-ai/minimax/hailuo-02/standard/text-to-video",
+        "license_type": "commercial",
+        "date": "2025-06-18T00:40:08.840Z",
+        "group": {
+          "key": "hailuo-02",
+          "label": "Text to Video (standard) "
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "duration_estimate": 4,
+        "pinned": false
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}
