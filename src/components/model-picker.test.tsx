@@ -116,6 +116,61 @@ describe("ModelPicker", () => {
     expect(screen.getByText(/unranked models last/)).toBeInTheDocument();
   });
 
+  it("narrows the list by the cost of a five-second clip", async () => {
+    const user = userEvent.setup();
+    const at = (id: string, usdPerSecond: number): VideoModel => ({
+      ...customModel("openrouter", id),
+      pricing: { kind: "per-second", rates: [{ usdPerSecond }] },
+    });
+    setModelCache("openrouter", [
+      at("cheap", 0.01),
+      at("middle", 0.1),
+      {
+        ...customModel("openrouter", "flat"),
+        pricing: { kind: "per-video", usd: 5 },
+      },
+      customModel("openrouter", "unpriced"),
+    ]);
+    render(
+      <ModelPicker
+        provider={fakeProvider(vi.fn())}
+        apiKey="k"
+        onPick={() => {}}
+      />,
+    );
+    const names = () =>
+      [
+        ...screen
+          .getByRole("list", { name: "Models" })
+          .querySelectorAll("button > span:first-child > .font-medium"),
+      ].map((el) => el.textContent);
+    expect(screen.getByTestId("cost-range")).toHaveTextContent("$0.05 – $5.00");
+    expect(names()).toEqual(["cheap", "middle", "flat", "unpriced"]);
+
+    // Pull the top down below $5 and the bottom up past $0.05.
+    screen.getByRole("slider", { name: "Highest cost" }).focus();
+    await user.keyboard("{PageDown}");
+    screen.getByRole("slider", { name: "Lowest cost" }).focus();
+    await user.keyboard("{PageUp}");
+    expect(names()).toEqual(["middle"]);
+    expect(screen.getByText(/Showing 1 of 4/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Any cost" }));
+    expect(names()).toEqual(["cheap", "middle", "flat", "unpriced"]);
+  });
+
+  it("has no cost slider without two different prices", () => {
+    setModelCache("openrouter", models);
+    render(
+      <ModelPicker
+        provider={fakeProvider(vi.fn())}
+        apiKey="k"
+        onPick={() => {}}
+      />,
+    );
+    expect(screen.queryByRole("slider")).not.toBeInTheDocument();
+  });
+
   it("accepts a slug that is not listed", async () => {
     setModelCache("openrouter", models);
     const onPick = vi.fn();
