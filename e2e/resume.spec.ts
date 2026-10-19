@@ -12,7 +12,9 @@ test("a reload mid-job picks the job back up and finishes it", async ({
   await page.getByLabel("Prompt").fill("slow one");
   await page.getByRole("button", { name: "Generate" }).click();
   await expect(
-    page.getByRole("region", { name: "Progress" }).getByText("Queued"),
+    page
+      .getByRole("region", { name: "Progress" })
+      .getByText("Queued", { exact: true }),
   ).toBeVisible();
 
   await page.reload();

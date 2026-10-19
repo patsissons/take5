@@ -43,6 +43,5 @@ test("delete everything empties local and session storage and IndexedDB", async 
   expect(state.local).toEqual([]);
   expect(state.session).toEqual([]);
   expect(state.databases).not.toContain("take5");
-  await page.reload();
-  await expect(page.getByRole("list", { name: "Providers" })).toBeVisible();
+  // (No reload check: seedSetup's init script would re-seed the storage.)
 });
