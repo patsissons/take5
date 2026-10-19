@@ -78,7 +78,10 @@ Commit in small, modular units (one logical change per commit).
   never drift from the policy (`e2e/privacy.spec.ts` checks they match).
 - **Resume is driven by history.** A run keeps its `JobRef` in IndexedDB
   while in flight; `App` resumes the newest one for the current provider on
-  load and clears the ref once the job ends. Routing is the URL hash only
+  load and clears the ref once the job ends. Only an answer from the
+  provider ends a run: a network-level error (`ProviderError` without a
+  status) retries in `use-run.ts`, and nothing is recorded while the page
+  unloads, so a reload never turns a live job into a failed one. Routing is the URL hash only
   (`src/lib/use-hash.ts`): `#privacy` is the one other page.
 - **Storage degrades, never breaks.** `src/lib/settings.ts` (local/session
   storage) and `src/lib/history.ts` (IndexedDB) swallow every storage
