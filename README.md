@@ -38,7 +38,7 @@ sees a provider-specific shape.
    nearest 5 s), resolution, aspect ratio or size, audio. The estimated
    cost shows when the model lists a per-second price.
 3. **Run**: the job is submitted and watched live, with a timeline
-   (submitted, queued, generating, done), an elapsed clock and the raw
+   (submitted, queued, generating, done), an elapsed clock and a table of the raw
    provider events. A reload resumes watching.
 4. **Result**: the clip plays from a blob kept in IndexedDB (so it outlives
    the provider's URL), with download, copy prompt and remix, and the cost
