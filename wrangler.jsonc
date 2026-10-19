@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "take5",
+  "compatibility_date": "2026-09-01",
+  // Static assets only: there is no Worker script. Every request is served
+  // from dist/ (with public/_headers applied), and the app talks to the
+  // video providers straight from the browser.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application",
+  },
+  "workers_dev": true,
+  // Required (even empty) for `wrangler preview`, which deploys each PR's
+  // preview (.github/workflows/preview.yml).
+  "previews": {},
+  "routes": [{ "pattern": "take5.lgtm.page", "custom_domain": true }],
+}

@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo"
+  },
+  "include": [
+    "vite.config.ts",
+    "playwright.config.ts",
+    "e2e",
+    "scripts",
+    "src/lib/csp.ts",
+    "src/providers/hosts.ts",
+    "eslint.config.js"
+  ]
+}
