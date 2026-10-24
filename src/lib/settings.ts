@@ -1,5 +1,5 @@
 import type { ProviderId } from "@/providers/hosts";
-import type { MediaModel } from "@/providers/types";
+import type { MediaKind, MediaModel } from "@/providers/types";
 
 /**
  * Everything small the app remembers, in localStorage (or sessionStorage
@@ -99,12 +99,36 @@ export function forgetKey(provider: ProviderId): void {
   remove(`key:${provider}`);
 }
 
-export function getLastModel(provider: ProviderId): string | null {
-  return read(`model:${provider}`);
+/** Video or image: what the studio makes. Video until the visitor switches. */
+export function getMode(): MediaKind {
+  return read("mode") === "image" ? "image" : "video";
 }
 
-export function setLastModel(provider: ProviderId, model: string): void {
-  write(`model:${provider}`, model);
+export function setMode(mode: MediaKind): void {
+  write("mode", mode);
+}
+
+/**
+ * Each mode remembers its own model and list. Video keeps the keys it had
+ * before images existed, so nothing needs migrating.
+ */
+function modeKey(kind: MediaKind, name: "model" | "models"): string {
+  return kind === "video" ? name : `image-${name}`;
+}
+
+export function getLastModel(
+  provider: ProviderId,
+  kind: MediaKind,
+): string | null {
+  return read(`${modeKey(kind, "model")}:${provider}`);
+}
+
+export function setLastModel(
+  provider: ProviderId,
+  model: string,
+  kind: MediaKind,
+): void {
+  write(`${modeKey(kind, "model")}:${provider}`, model);
 }
 
 export interface ModelCache {
@@ -112,20 +136,34 @@ export interface ModelCache {
   models: MediaModel[];
 }
 
-export function getModelCache(provider: ProviderId): ModelCache | null {
-  const cache = readJson<ModelCache>(`models:${provider}`);
-  return cache && Array.isArray(cache.models) ? cache : null;
+export function getModelCache(
+  provider: ProviderId,
+  kind: MediaKind,
+): ModelCache | null {
+  const cache = readJson<ModelCache>(`${modeKey(kind, "models")}:${provider}`);
+  if (!cache || !Array.isArray(cache.models)) return null;
+  // Lists cached before models carried a kind are all videos.
+  return {
+    ...cache,
+    models: cache.models.map((model) =>
+      model.kind ? model : { ...model, kind },
+    ),
+  };
 }
 
 export function setModelCache(
   provider: ProviderId,
   models: MediaModel[],
+  kind: MediaKind,
 ): void {
-  write(`models:${provider}`, JSON.stringify({ at: Date.now(), models }));
+  write(
+    `${modeKey(kind, "models")}:${provider}`,
+    JSON.stringify({ at: Date.now(), models }),
+  );
 }
 
-export function clearModelCache(provider: ProviderId): void {
-  remove(`models:${provider}`);
+export function clearModelCache(provider: ProviderId, kind: MediaKind): void {
+  remove(`${modeKey(kind, "models")}:${provider}`);
 }
 
 /** Forgets every setting and key (the theme choice included). */

@@ -11,11 +11,13 @@ import { COST_STEPS, costAt, costBounds, inCostRange } from "@/lib/model-cost";
 import { ARENA, arenaElo, rankModels } from "@/lib/model-ranking";
 import { getModelCache, setModelCache } from "@/lib/settings";
 import { customModel } from "@/lib/use-settings";
-import type { MediaModel, MediaProvider } from "@/providers/types";
+import type { MediaKind, MediaModel, MediaProvider } from "@/providers/types";
 
 interface Props {
   provider: MediaProvider;
   apiKey: string;
+  /** Which of the provider's lists: its video or its image models. */
+  kind: MediaKind;
   selected?: string | null;
   onPick: (model: MediaModel) => void;
 }
@@ -26,9 +28,15 @@ type Load =
   | { status: "error"; models: MediaModel[]; at?: number; error: string };
 
 /** The provider's video models, cached locally, searchable, or a slug typed by hand. */
-export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
+export function ModelPicker({
+  provider,
+  apiKey,
+  kind,
+  selected,
+  onPick,
+}: Props) {
   const [load, setLoad] = useState<Load>(() => {
-    const cache = getModelCache(provider.id);
+    const cache = getModelCache(provider.id, kind);
     return cache
       ? { status: "ready", models: cache.models, at: cache.at }
       : { status: "loading", models: [] };
@@ -53,7 +61,7 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
       const models = load.models.some((m) => m.id === model.id)
         ? load.models.map((m) => (m.id === model.id ? detailed : m))
         : [...load.models, detailed];
-      setModelCache(provider.id, models);
+      setModelCache(provider.id, models, kind);
       setLoad((state) => ({ ...state, models }));
       onPick(detailed);
     } catch (error) {
@@ -71,7 +79,7 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
     }));
     try {
       const models = await provider.listModels(apiKey);
-      setModelCache(provider.id, models);
+      setModelCache(provider.id, models, kind);
       setLoad({ status: "ready", models, at: Date.now() });
     } catch (error) {
       setLoad((state) => ({
@@ -81,7 +89,7 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
         error: (error as Error).message,
       }));
     }
-  }, [provider, apiKey]);
+  }, [provider, apiKey, kind]);
 
   // Fetch once on mount when there is no cache. The ref keeps StrictMode's
   // double effect (and a re-render) from fetching twice.
@@ -121,7 +129,7 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
     const id = slug.trim();
     if (!id) return;
     const known = load.models.find((model) => model.id === id);
-    void pick(known ?? customModel(provider.id, id));
+    void pick(known ?? customModel(provider.id, id, kind));
   };
 
   return (

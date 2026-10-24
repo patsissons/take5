@@ -11,7 +11,7 @@ import { RunView } from "@/components/run-view";
 import { SetupCard, type SetupStep } from "@/components/setup-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { deleteDatabase, type Run } from "@/lib/history";
+import { deleteDatabase, runKind, type Run } from "@/lib/history";
 import { REPO_URL } from "@/lib/links";
 import { useHash } from "@/lib/use-hash";
 import { useHistory } from "@/lib/use-history";
@@ -38,9 +38,9 @@ export default function App() {
   const model = useMemo<MediaModel | undefined>(
     () =>
       provider && settings.model
-        ? resolveModel(provider.id, settings.model)
+        ? resolveModel(provider.id, settings.model, settings.mode)
         : undefined,
-    [provider, settings.model],
+    [provider, settings.model, settings.mode],
   );
   const run = useRun(provider, settings.key);
   const history = useHistory();
@@ -72,7 +72,7 @@ export default function App() {
         settings.chooseProvider(from.provider);
       }
       if (from.request.model !== settings.model) {
-        settings.chooseModel(from.provider, from.request.model);
+        settings.chooseModel(from.provider, from.request.model, runKind(from));
       }
       setRemix(from.request);
       run.clear();
