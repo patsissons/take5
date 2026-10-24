@@ -19,34 +19,71 @@ const fake: MediaProvider = vi.hoisted(() => ({
   keyUrl: "https://keys.example",
   keyHint: "sk-fake",
   hosts: ["api.example"],
-  kinds: ["video"],
+  kinds: ["video", "image"],
+  answersAtSubmit: ["image"],
   canCancel: false,
   validateKey: vi.fn(async (key: string) => {
     if (key !== "good") throw new Error("Bad key");
     return { label: "test key" };
   }),
-  listModels: vi.fn(async () => [
-    {
-      provider: "openrouter" as const,
-      kind: "video" as const,
-      id: "fake/fast",
-      name: "Fast",
-      frameImages: [],
-      referenceImages: false,
-      audio: null,
-      durations: [5],
-      resolutions: null,
-      aspectRatios: null,
-      sizes: null,
-      pricing: null,
-    },
-  ]),
-  submit: vi.fn(async () => ({
-    provider: "openrouter" as const,
-    id: "job-1",
-    model: "fake/fast",
-    submittedAt: 0,
-  })),
+  listModels: vi.fn(async (_key: string, kind: "video" | "image") =>
+    kind === "image"
+      ? [
+          {
+            provider: "openrouter" as const,
+            kind: "image" as const,
+            id: "fake/still",
+            name: "Still",
+            frameImages: [],
+            referenceImages: true,
+            audio: null,
+            durations: null,
+            resolutions: ["1K", "2K"],
+            aspectRatios: ["16:9", "1:1"],
+            sizes: null,
+            pricing: { kind: "per-image" as const, rates: [{ usd: 0.04 }] },
+          },
+        ]
+      : [
+          {
+            provider: "openrouter" as const,
+            kind: "video" as const,
+            id: "fake/fast",
+            name: "Fast",
+            frameImages: [],
+            referenceImages: false,
+            audio: null,
+            durations: [5],
+            resolutions: null,
+            aspectRatios: null,
+            sizes: null,
+            pricing: null,
+          },
+        ],
+  ),
+  submit: vi.fn(async (_key: string, req: { kind?: string; model: string }) =>
+    req.kind === "image"
+      ? {
+          provider: "openrouter" as const,
+          id: "image-1",
+          model: req.model,
+          submittedAt: 0,
+          answer: {
+            kind: "completed" as const,
+            at: 3,
+            result: {
+              costUsd: 0.04,
+              media: new Blob(["png"], { type: "image/png" }),
+            },
+          },
+        }
+      : {
+          provider: "openrouter" as const,
+          id: "job-1",
+          model: "fake/fast",
+          submittedAt: 0,
+        },
+  ),
   watch: vi.fn(async function* (): AsyncGenerator<JobEvent> {
     yield { kind: "status", at: 1, status: "queued" };
     yield { kind: "status", at: 2, status: "running" };
@@ -75,7 +112,9 @@ describe("App", () => {
       screen.getByRole("heading", { level: 1, name: "take5" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText("Five-second AI videos, straight from your browser."),
+      screen.getByText(
+        "Five-second AI videos and stills, straight from your browser.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("note")).toHaveTextContent(
       "Your key and videos never leave this browser",
@@ -181,6 +220,98 @@ describe("App", () => {
       "FakeRouter · Fast",
     );
     expect(getKey("openrouter")).toBe("good");
+  });
+
+  it("switches to images, picks a still model first, and remembers each mode's model", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("take5:provider", "openrouter");
+    localStorage.setItem("take5:key:openrouter", "good");
+    localStorage.setItem("take5:model:openrouter", "fake/fast");
+    setModelCache(
+      "openrouter",
+      await fake.listModels("good", "video"),
+      "video",
+    );
+    render(<App />);
+    const modes = screen.getByRole("group", { name: "What to make" });
+    expect(
+      within(modes).getByRole("button", { name: "Video" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    // No image model yet: the model step comes first, listing stills.
+    await user.click(within(modes).getByRole("button", { name: "Image" }));
+    expect(
+      screen.getByText("Only FakeRouter's image models are listed."),
+    ).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: /Still/ }));
+    expect(fake.listModels).toHaveBeenLastCalledWith("good", "image");
+    expect(screen.getByTestId("studio-bar")).toHaveTextContent(
+      "FakeRouter · Still",
+    );
+    expect(screen.queryByLabelText("Duration")).not.toBeInTheDocument();
+    expect(screen.getByTestId("estimate")).toHaveTextContent("About $0.04");
+
+    await user.type(screen.getByLabelText("Prompt"), "a fox");
+    await user.click(screen.getByRole("button", { name: "Generate" }));
+    expect(fake.submit).toHaveBeenLastCalledWith(
+      "good",
+      expect.objectContaining({ kind: "image", model: "fake/still" }),
+      expect.anything(),
+    );
+    const image = await screen.findByTestId("result-image");
+    expect(image.getAttribute("src")).toMatch(/^blob:/);
+    expect(fake.watch).not.toHaveBeenCalled();
+    await waitFor(async () =>
+      expect(await listRuns()).toEqual([
+        expect.objectContaining({
+          status: "completed",
+          videoType: "image/png",
+        }),
+      ]),
+    );
+
+    // Back to video: its model is still there; then images again, no picking.
+    await user.click(
+      within(screen.getByRole("group", { name: "What to make" })).getByRole(
+        "button",
+        { name: "Video" },
+      ),
+    );
+    expect(screen.getByTestId("studio-bar")).toHaveTextContent(
+      "FakeRouter · Fast",
+    );
+    expect(screen.getByLabelText("Duration")).toBeInTheDocument();
+
+    // Remixing the still switches back to images.
+    const runs = await screen.findByRole("list", { name: "Past runs" });
+    await user.click(within(runs).getByRole("button", { name: "Remix" }));
+    expect(screen.getByTestId("studio-bar")).toHaveTextContent(
+      "FakeRouter · Still",
+    );
+    expect(screen.getByLabelText("Prompt")).toHaveValue("a fox");
+  });
+
+  it("backs out of a switch to a mode with no model yet", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("take5:provider", "openrouter");
+    localStorage.setItem("take5:key:openrouter", "good");
+    localStorage.setItem("take5:model:openrouter", "fake/fast");
+    setModelCache(
+      "openrouter",
+      await fake.listModels("good", "video"),
+      "video",
+    );
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Image" }));
+    expect(await screen.findByRole("list", { name: "Models" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.getByTestId("studio-bar")).toHaveTextContent(
+      "FakeRouter · Fast",
+    );
+    expect(screen.getByRole("button", { name: "Video" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("offers no way out of the first-run setup", async () => {
