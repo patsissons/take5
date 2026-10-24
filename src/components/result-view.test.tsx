@@ -43,4 +43,25 @@ describe("ResultView", () => {
     await userEvent.click(screen.getByRole("button", { name: "Remix" }));
     expect(onRemix).toHaveBeenCalledWith(run);
   });
+
+  it("shows a still as an image with an image file name", () => {
+    render(
+      <ResultView
+        run={{
+          ...run,
+          request: { ...run.request, kind: "image" },
+          videoType: "image/png",
+        }}
+        mediaUrl="blob:y"
+        onRemix={() => {}}
+      />,
+    );
+    expect(screen.getByTestId("result-image")).toHaveAttribute("src", "blob:y");
+    expect(screen.getByRole("img", { name: "a corgi" })).toBeVisible();
+    expect(screen.queryByTestId("result-video")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Download" })).toHaveAttribute(
+      "download",
+      "take5-abc.png",
+    );
+  });
 });

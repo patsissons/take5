@@ -5,9 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { formatUsd } from "@/lib/cost";
-import { DEFAULT_DURATION } from "@/lib/composer-defaults";
 import { badges } from "@/lib/model-badges";
-import { COST_STEPS, costAt, costBounds, inCostRange } from "@/lib/model-cost";
+import {
+  COST_STEPS,
+  costAt,
+  costBounds,
+  inCostRange,
+  unitLabel,
+} from "@/lib/model-cost";
 import { ARENAS, arenaElo, rankModels } from "@/lib/model-ranking";
 import { getModelCache, setModelCache } from "@/lib/settings";
 import { customModel } from "@/lib/use-settings";
@@ -167,7 +172,7 @@ export function ModelPicker({
       {bounds && (
         <div className="grid gap-2" role="group" aria-labelledby="cost-label">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
-            <span id="cost-label">Cost per {DEFAULT_DURATION}s clip</span>
+            <span id="cost-label">Cost per {unitLabel(kind)}</span>
             <span
               className="text-muted-foreground tabular-nums"
               data-testid="cost-range"

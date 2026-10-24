@@ -1,8 +1,8 @@
-import { Film, Trash2, Wand2 } from "lucide-react";
+import { Film, ImageIcon, Trash2, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/cost";
-import type { Run } from "@/lib/history";
+import { runKind, type Run } from "@/lib/history";
 import { runDuration } from "@/lib/time";
 import { formatBytes } from "@/lib/use-history";
 import { providerById } from "@/providers";
@@ -99,6 +99,11 @@ export function HistoryGallery({
                   alt=""
                   className="size-full object-cover"
                 />
+              ) : runKind(run) === "image" ? (
+                <ImageIcon
+                  aria-hidden
+                  className="size-6 text-muted-foreground"
+                />
               ) : (
                 <Film aria-hidden className="size-6 text-muted-foreground" />
               )}
@@ -110,7 +115,7 @@ export function HistoryGallery({
               <p className="truncate text-xs text-muted-foreground">
                 {providerById(run.provider)?.label ?? run.provider} ·{" "}
                 {run.modelName}
-                {run.request.duration ? ` · ${run.request.duration}s` : ""}
+                {settingsOf(run)}
               </p>
               <p className="text-xs text-muted-foreground">
                 <span
@@ -161,4 +166,14 @@ export function HistoryGallery({
       </ul>
     </section>
   );
+}
+
+/** The settings worth a glance: a clip's length, a still's shape. */
+function settingsOf(run: Run): string {
+  const { duration, resolution, aspectRatio, size } = run.request;
+  if (runKind(run) === "video") return duration ? ` · ${duration}s` : "";
+  return [resolution, aspectRatio, size]
+    .filter(Boolean)
+    .map((part) => ` · ${part}`)
+    .join("");
 }

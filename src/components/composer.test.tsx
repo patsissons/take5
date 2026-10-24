@@ -85,6 +85,7 @@ describe("Composer", () => {
     expect(screen.getByTestId("estimate")).toHaveTextContent("About $0.64");
     await userEvent.type(prompt, "{Meta>}{Enter}{/Meta}");
     expect(onGenerate).toHaveBeenCalledWith({
+      kind: "video",
       model: "google/veo",
       prompt: "a corgi",
       duration: 8,
@@ -137,5 +138,71 @@ describe("Composer", () => {
     expect(await screen.findByLabelText("Image 2 role")).toHaveValue(
       "last_frame",
     );
+  });
+
+  describe("for a still", () => {
+    const banana: MediaModel = {
+      ...customModel("gemini", "gemini-3.1-flash-image", "image"),
+      name: "Nano Banana 2",
+      maxImages: 2,
+      resolutions: ["512", "1K", "2K"],
+      aspectRatios: ["16:9", "1:1"],
+      pricing: {
+        kind: "per-image",
+        rates: [
+          { usd: 0.067, resolution: "1K" },
+          { usd: 0.101, resolution: "2K" },
+        ],
+      },
+    };
+
+    it("drops duration and audio and asks for an image", async () => {
+      const onGenerate = vi.fn();
+      render(<Composer model={banana} busy={false} onGenerate={onGenerate} />);
+      expect(screen.queryByLabelText("Duration")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Audio")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Resolution")).toHaveValue("1K");
+      expect(screen.getByLabelText("Aspect")).toHaveValue("1:1");
+      expect(screen.getByTestId("estimate")).toHaveTextContent("About $0.067");
+      await userEvent.selectOptions(screen.getByLabelText("Resolution"), "2K");
+      expect(screen.getByTestId("estimate")).toHaveTextContent("About $0.101");
+      await userEvent.type(screen.getByLabelText("Prompt"), "a fox");
+      await userEvent.click(screen.getByRole("button", { name: "Generate" }));
+      expect(onGenerate).toHaveBeenCalledWith({
+        kind: "image",
+        model: "gemini-3.1-flash-image",
+        prompt: "a fox",
+        duration: undefined,
+        resolution: "2K",
+        aspectRatio: "1:1",
+        size: undefined,
+        audio: undefined,
+        images: [],
+      });
+    });
+
+    it("takes only as many images as the model does", async () => {
+      render(<Composer model={banana} busy={false} onGenerate={() => {}} />);
+      await userEvent.upload(screen.getByLabelText("Choose an image"), png());
+      await userEvent.upload(screen.getByLabelText("Choose an image"), png());
+      expect(await screen.findByLabelText("Image 2 role")).toHaveValue(
+        "reference",
+      );
+      expect(
+        screen.queryByRole("button", { name: "Add image" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("waits for an image when the model only edits", async () => {
+      const edit = { ...banana, imageRequired: true, maxImages: 1 };
+      render(<Composer model={edit} busy={false} onGenerate={() => {}} />);
+      expect(screen.getByText(/This model edits an image/)).toBeVisible();
+      await userEvent.type(screen.getByLabelText("Prompt"), "make it blue");
+      const generate = screen.getByRole("button", { name: "Generate" });
+      expect(generate).toBeDisabled();
+      await userEvent.upload(screen.getByLabelText("Choose an image"), png());
+      await screen.findByLabelText("Image 1 role");
+      expect(generate).toBeEnabled();
+    });
   });
 });
