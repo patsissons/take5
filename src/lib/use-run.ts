@@ -3,9 +3,9 @@ import { isAbort, ProviderError, sleep } from "@/providers/http";
 import type {
   JobEvent,
   JobStatus,
-  VideoModel,
-  VideoProvider,
-  VideoRequest,
+  MediaModel,
+  MediaProvider,
+  MediaRequest,
 } from "@/providers/types";
 import * as history from "./history";
 import { captureThumbnail } from "./thumbnail";
@@ -17,7 +17,7 @@ export interface RunState {
   queuePosition?: number;
   error?: string;
   /** An object URL for the finished video. */
-  videoUrl?: string;
+  mediaUrl?: string;
   blob?: Blob;
 }
 
@@ -60,7 +60,7 @@ export function isFinished(status: JobStatus): boolean {
  * can pick the job back up.
  */
 export function useRun(
-  provider: VideoProvider | undefined,
+  provider: MediaProvider | undefined,
   key: string | null,
   { retryMs = RETRY_MS }: { retryMs?: number } = {},
 ) {
@@ -124,7 +124,7 @@ export function useRun(
             }
             if (event.kind === "completed") {
               update({ status: "running" });
-              const blob = await provider.fetchVideo(
+              const blob = await provider.fetchMedia(
                 key,
                 run.job,
                 event.result,
@@ -141,13 +141,13 @@ export function useRun(
                 videoType: blob.type,
                 job: undefined,
               };
-              await history.putVideo(run.id, blob);
+              await history.putMedia(run.id, blob);
               await history.putRun(finished);
               update({
                 run: finished,
                 status: "completed",
                 blob,
-                videoUrl: replaceUrl(blob),
+                mediaUrl: replaceUrl(blob),
               });
               return;
             }
@@ -185,7 +185,7 @@ export function useRun(
   );
 
   const start = useCallback(
-    async (req: VideoRequest, model: VideoModel) => {
+    async (req: MediaRequest, model: MediaModel) => {
       if (!provider || !key) return;
       controller.current?.abort();
       const abort = new AbortController();
@@ -243,14 +243,14 @@ export function useRun(
   const show = useCallback(
     async (run: history.Run) => {
       controller.current?.abort();
-      const blob = await history.getVideo(run.id);
+      const blob = await history.getMedia(run.id);
       setCurrent({
         run,
         events: [],
         status: run.status === "completed" ? "completed" : "failed",
         error: run.error,
         blob,
-        videoUrl: replaceUrl(blob),
+        mediaUrl: replaceUrl(blob),
       });
     },
     [replaceUrl],

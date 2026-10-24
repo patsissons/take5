@@ -3,15 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { clearSettings, getModelCache, setModelCache } from "@/lib/settings";
 import { customModel } from "@/lib/use-settings";
-import type { VideoModel, VideoProvider } from "@/providers/types";
+import type { MediaModel, MediaProvider } from "@/providers/types";
 import { ModelPicker } from "./model-picker";
 
-const models: VideoModel[] = [
+const models: MediaModel[] = [
   { ...customModel("openrouter", "a/one"), name: "One", durations: [5] },
   { ...customModel("openrouter", "b/two"), name: "Two", audio: true },
 ];
 
-function fakeProvider(listModels: VideoProvider["listModels"]): VideoProvider {
+function fakeProvider(listModels: MediaProvider["listModels"]): MediaProvider {
   return {
     id: "openrouter",
     label: "OpenRouter",
@@ -23,7 +23,7 @@ function fakeProvider(listModels: VideoProvider["listModels"]): VideoProvider {
     listModels,
     submit: vi.fn(),
     watch: vi.fn(),
-    fetchVideo: vi.fn(),
+    fetchMedia: vi.fn(),
   };
 }
 
@@ -118,7 +118,7 @@ describe("ModelPicker", () => {
 
   it("narrows the list by the cost of a five-second clip", async () => {
     const user = userEvent.setup();
-    const at = (id: string, usdPerSecond: number): VideoModel => ({
+    const at = (id: string, usdPerSecond: number): MediaModel => ({
       ...customModel("openrouter", id),
       pricing: { kind: "per-second", rates: [{ usdPerSecond }] },
     });
@@ -206,7 +206,7 @@ describe("ModelPicker", () => {
 describe("ModelPicker with inspectModel", () => {
   it("fills in a model's details on pick and caches them", async () => {
     setModelCache("openrouter", models);
-    const inspectModel = vi.fn(async (_key: string, model: VideoModel) => ({
+    const inspectModel = vi.fn(async (_key: string, model: MediaModel) => ({
       ...model,
       durations: [5, 10],
       extra: { firstFrameField: "image_url" },

@@ -6,7 +6,7 @@ export type FrameRole = "first_frame" | "last_frame";
 export type ImageRole = FrameRole | "reference";
 
 /** A provider's video model, normalised so the UI never sees provider shapes. */
-export interface VideoModel {
+export interface MediaModel {
   provider: ProviderId;
   /** The slug sent back to the provider. */
   id: string;
@@ -50,7 +50,7 @@ export interface ImageInput {
 }
 
 /** What the visitor asked for, in provider-neutral terms. */
-export interface VideoRequest {
+export interface MediaRequest {
   model: string;
   prompt: string;
   duration?: number;
@@ -79,7 +79,7 @@ export type JobStatus =
 export interface JobResult {
   costUsd?: number;
   /** Where the provider put the video, when it is a URL we can fetch. */
-  videoUrl?: string;
+  mediaUrl?: string;
 }
 
 /** One entry in the live timeline. `raw` is the provider payload, for the feed. */
@@ -102,7 +102,7 @@ export interface KeyInfo {
   remainingUsd?: number | null;
 }
 
-export interface VideoProvider {
+export interface MediaProvider {
   id: ProviderId;
   label: string;
   /** Where to create an API key. */
@@ -114,21 +114,21 @@ export interface VideoProvider {
   /** Whether cancel() stops the job at the provider (otherwise we only stop watching). */
   canCancel: boolean;
   validateKey(key: string, signal?: AbortSignal): Promise<KeyInfo>;
-  listModels(key: string, signal?: AbortSignal): Promise<VideoModel[]>;
+  listModels(key: string, signal?: AbortSignal): Promise<MediaModel[]>;
   /** Fills in capabilities and pricing for one model when the list has none. */
   inspectModel?(
     key: string,
-    model: VideoModel,
+    model: MediaModel,
     signal?: AbortSignal,
-  ): Promise<VideoModel>;
-  submit(key: string, req: VideoRequest, signal?: AbortSignal): Promise<JobRef>;
+  ): Promise<MediaModel>;
+  submit(key: string, req: MediaRequest, signal?: AbortSignal): Promise<JobRef>;
   /** Live progress until a `completed` or `failed` event; hides polling vs SSE. */
   watch(
     key: string,
     job: JobRef,
     signal: AbortSignal,
   ): AsyncGenerator<JobEvent>;
-  fetchVideo(
+  fetchMedia(
     key: string,
     job: JobRef,
     result: JobResult,

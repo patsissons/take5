@@ -1,4 +1,4 @@
-import type { PerSecondRate, Pricing, VideoRequest } from "@/providers/types";
+import type { PerSecondRate, Pricing, MediaRequest } from "@/providers/types";
 
 /**
  * A best-effort estimate from a model's price list: the per-second rate
@@ -7,7 +7,7 @@ import type { PerSecondRate, Pricing, VideoRequest } from "@/providers/types";
  */
 export function estimateCost(
   pricing: Pricing | null,
-  req: Pick<VideoRequest, "duration" | "resolution" | "audio" | "images">,
+  req: Pick<MediaRequest, "duration" | "resolution" | "audio" | "images">,
 ): number | undefined {
   if (!pricing) return undefined;
   if (pricing.kind === "per-video") return pricing.usd;
@@ -18,7 +18,7 @@ export function estimateCost(
 
 export function bestRate(
   rates: PerSecondRate[],
-  req: Pick<VideoRequest, "resolution" | "audio" | "images">,
+  req: Pick<MediaRequest, "resolution" | "audio" | "images">,
 ): PerSecondRate | undefined {
   const hasImage = req.images.length > 0;
   let best: { rate: PerSecondRate; score: number } | undefined;

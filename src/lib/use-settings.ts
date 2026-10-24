@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type { ProviderId } from "@/providers/hosts";
-import type { VideoModel } from "@/providers/types";
+import type { MediaModel } from "@/providers/types";
 import * as settings from "./settings";
 
 export interface Settings {
@@ -60,14 +60,14 @@ export function useSettings() {
  * The full model record for a slug: from the cached list, or a bare record
  * for a slug typed by hand (the composer then shows free-form controls).
  */
-export function resolveModel(provider: ProviderId, id: string): VideoModel {
+export function resolveModel(provider: ProviderId, id: string): MediaModel {
   const cached = settings
     .getModelCache(provider)
     ?.models.find((model) => model.id === id);
   return cached ?? customModel(provider, id);
 }
 
-export function customModel(provider: ProviderId, id: string): VideoModel {
+export function customModel(provider: ProviderId, id: string): MediaModel {
   return {
     provider,
     id,

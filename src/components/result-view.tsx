@@ -2,17 +2,17 @@ import { Check, Copy, Download, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/cost";
-import { videoFileName, type Run } from "@/lib/history";
+import { mediaFileName, type Run } from "@/lib/history";
 import { runDuration } from "@/lib/time";
 
 interface Props {
   run: Run;
-  videoUrl: string;
+  mediaUrl: string;
   onRemix: (run: Run) => void;
 }
 
 /** The finished clip with download, copy-prompt and remix. */
-export function ResultView({ run, videoUrl, onRemix }: Props) {
+export function ResultView({ run, mediaUrl, onRemix }: Props) {
   const [copied, setCopied] = useState(false);
   const took = runDuration(run);
 
@@ -29,7 +29,7 @@ export function ResultView({ run, videoUrl, onRemix }: Props) {
   return (
     <section aria-label="Result" className="flex flex-col gap-3">
       <video
-        src={videoUrl}
+        src={mediaUrl}
         autoPlay
         muted
         loop
@@ -40,7 +40,7 @@ export function ResultView({ run, videoUrl, onRemix }: Props) {
       />
       <div className="flex flex-wrap items-center gap-2">
         <Button asChild>
-          <a href={videoUrl} download={videoFileName(run)}>
+          <a href={mediaUrl} download={mediaFileName(run)}>
             <Download data-icon="inline-start" /> Download
           </a>
         </Button>

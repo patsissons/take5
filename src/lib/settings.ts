@@ -1,5 +1,5 @@
 import type { ProviderId } from "@/providers/hosts";
-import type { VideoModel } from "@/providers/types";
+import type { MediaModel } from "@/providers/types";
 
 /**
  * Everything small the app remembers, in localStorage (or sessionStorage
@@ -109,7 +109,7 @@ export function setLastModel(provider: ProviderId, model: string): void {
 
 export interface ModelCache {
   at: number;
-  models: VideoModel[];
+  models: MediaModel[];
 }
 
 export function getModelCache(provider: ProviderId): ModelCache | null {
@@ -119,7 +119,7 @@ export function getModelCache(provider: ProviderId): ModelCache | null {
 
 export function setModelCache(
   provider: ProviderId,
-  models: VideoModel[],
+  models: MediaModel[],
 ): void {
   write(`models:${provider}`, JSON.stringify({ at: Date.now(), models }));
 }

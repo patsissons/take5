@@ -19,7 +19,7 @@ const run: Run = {
 
 describe("ResultView", () => {
   it("plays the clip and offers a download with the run's name", () => {
-    render(<ResultView run={run} videoUrl="blob:x" onRemix={() => {}} />);
+    render(<ResultView run={run} mediaUrl="blob:x" onRemix={() => {}} />);
     expect(screen.getByTestId("result-video")).toHaveAttribute("src", "blob:x");
     const download = screen.getByRole("link", { name: "Download" });
     expect(download).toHaveAttribute("href", "blob:x");
@@ -36,7 +36,7 @@ describe("ResultView", () => {
       value: { writeText },
     });
     const onRemix = vi.fn();
-    render(<ResultView run={run} videoUrl="blob:x" onRemix={onRemix} />);
+    render(<ResultView run={run} mediaUrl="blob:x" onRemix={onRemix} />);
     await userEvent.click(screen.getByRole("button", { name: "Copy prompt" }));
     expect(writeText).toHaveBeenCalledWith("a corgi");
     expect(screen.getByRole("button", { name: "Copied" })).toBeInTheDocument();

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { customModel } from "@/lib/use-settings";
-import type { VideoModel } from "@/providers/types";
+import type { MediaModel } from "@/providers/types";
 import { Composer } from "./composer";
 
 // jsdom has no createImageBitmap; the resize is covered by image.test.ts.
@@ -13,7 +13,7 @@ vi.mock("@/lib/image", async (original) => ({
 
 const png = () => new File(["x"], "frame.png", { type: "image/png" });
 
-const veo: VideoModel = {
+const veo: MediaModel = {
   ...customModel("openrouter", "google/veo"),
   name: "Veo",
   audio: true,
@@ -127,7 +127,7 @@ describe("Composer", () => {
       ...veo,
       frameImages: ["first_frame", "last_frame"],
       referenceImages: false,
-    } satisfies VideoModel;
+    } satisfies MediaModel;
     render(<Composer model={frames} busy={false} onGenerate={() => {}} />);
     await userEvent.upload(screen.getByLabelText("Choose an image"), png());
     expect(await screen.findByLabelText("Image 1 role")).toHaveValue(

@@ -11,7 +11,7 @@ import {
   type OpenRouterJob,
   type OpenRouterModel,
 } from "./openrouter";
-import type { JobEvent, JobRef, VideoRequest } from "./types";
+import type { JobEvent, JobRef, MediaRequest } from "./types";
 
 const models = fixture.data as unknown as OpenRouterModel[];
 const byId = (id: string) => models.find((model) => model.id === id)!;
@@ -106,7 +106,7 @@ describe("normalizeModel", () => {
 });
 
 describe("buildBody", () => {
-  const base: VideoRequest = {
+  const base: MediaRequest = {
     model: "google/veo-3.1-lite",
     prompt: "a cat",
     duration: 4,
@@ -261,7 +261,7 @@ describe("openrouter", () => {
     expect(events[0]).toMatchObject({ status: "queued" });
     expect(events[1]).toMatchObject({ status: "running" });
     expect(events[2]).toMatchObject({
-      result: { costUsd: 0.12, videoUrl: "https://cdn.example/v.mp4" },
+      result: { costUsd: 0.12, mediaUrl: "https://cdn.example/v.mp4" },
     });
   });
 
@@ -313,7 +313,7 @@ describe("openrouter", () => {
         headers: { "content-type": "video/mp4" },
       }),
     );
-    const blob = await openrouter.fetchVideo("k", job, {});
+    const blob = await openrouter.fetchMedia("k", job, {});
     expect(blob.size).toBe(3);
     expect(calls[0]!.url).toBe(
       "https://openrouter.ai/api/v1/videos/gen-vid-1/content?index=0",

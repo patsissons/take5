@@ -19,7 +19,7 @@ import { isFinished, useRun } from "@/lib/use-run";
 import { resolveModel, useSettings } from "@/lib/use-settings";
 import { providerById, providers } from "@/providers";
 import type { ProviderId } from "@/providers/hosts";
-import type { VideoModel, VideoRequest } from "@/providers/types";
+import type { MediaModel, MediaRequest } from "@/providers/types";
 
 export default function App() {
   const view = useHash();
@@ -34,8 +34,8 @@ export default function App() {
   // The provider to go back to when a visitor backs out of "Change model"
   // or "Change provider" from the studio.
   const [returnTo, setReturnTo] = useState<ProviderId | null>(null);
-  const [remix, setRemix] = useState<Partial<VideoRequest> | undefined>();
-  const model = useMemo<VideoModel | undefined>(
+  const [remix, setRemix] = useState<Partial<MediaRequest> | undefined>();
+  const model = useMemo<MediaModel | undefined>(
     () =>
       provider && settings.model
         ? resolveModel(provider.id, settings.model)
@@ -204,10 +204,10 @@ export default function App() {
                   onCancel={() => void run.cancel()}
                 />
               )}
-              {run.current?.status === "completed" && run.current.videoUrl && (
+              {run.current?.status === "completed" && run.current.mediaUrl && (
                 <ResultView
                   run={run.current.run}
-                  videoUrl={run.current.videoUrl}
+                  mediaUrl={run.current.mediaUrl}
                   onRemix={onRemix}
                 />
               )}

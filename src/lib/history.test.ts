@@ -6,11 +6,11 @@ import {
   deleteDatabase,
   deleteRun,
   getRun,
-  getVideo,
+  getMedia,
   listRuns,
   newRunId,
   putRun,
-  putVideo,
+  putMedia,
   resetDb,
   type Run,
 } from "./history";
@@ -33,19 +33,19 @@ describe("history", () => {
   it("stores runs newest first and their videos", async () => {
     await putRun(run("a", 1));
     await putRun(run("b", 2));
-    await putVideo("b", new Blob(["video"], { type: "video/mp4" }));
+    await putMedia("b", new Blob(["video"], { type: "video/mp4" }));
     expect((await listRuns()).map((r) => r.id)).toEqual(["b", "a"]);
     expect(await getRun("a")).toMatchObject({ modelName: "Veo" });
-    expect((await getVideo("b"))?.size).toBe(5);
-    expect(await getVideo("a")).toBeUndefined();
+    expect((await getMedia("b"))?.size).toBe(5);
+    expect(await getMedia("a")).toBeUndefined();
   });
 
   it("deletes a run with its video, and everything on clear", async () => {
     await putRun(run("a", 1));
-    await putVideo("a", new Blob(["v"]));
+    await putMedia("a", new Blob(["v"]));
     await deleteRun("a");
     expect(await getRun("a")).toBeUndefined();
-    expect(await getVideo("a")).toBeUndefined();
+    expect(await getMedia("a")).toBeUndefined();
 
     await putRun(run("b", 1));
     await clearHistory();
