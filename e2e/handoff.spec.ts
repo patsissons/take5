@@ -52,11 +52,19 @@ test("a phone scans the desktop's QR, types the code and gets the setup and hist
   // The payload leaves the address bar straight away.
   expect(new URL(phonePage.url()).hash).toBe("");
 
-  await phonePage.getByLabel("Code").fill("AAAA-AAAA");
+  // A paste (or the keyboard's suggestion) lands in the first box and
+  // spreads; typing moves through the boxes by itself.
+  const first = phonePage.getByLabel("Character 1 of 8");
+  await expect(first).toBeFocused();
+  await first.fill("AAAA-AAAA");
   await phonePage.getByRole("button", { name: "Unlock" }).click();
   await expect(phonePage.getByRole("alert")).toContainText("doesn't match");
 
-  await phonePage.getByLabel("Code").fill(code!.toLowerCase());
+  await first.click();
+  await phonePage.keyboard.type(code!.toLowerCase());
+  await expect(phonePage.getByLabel("Character 8 of 8")).toHaveValue(
+    code!.slice(-1),
+  );
   await phonePage.getByRole("button", { name: "Unlock" }).click();
   await expect(phonePage.getByText("sk-or-…good")).toBeVisible();
   await phonePage.getByRole("button", { name: "Import" }).click();

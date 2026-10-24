@@ -1,11 +1,16 @@
 import { X } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { CodeInput } from "@/components/code-input";
 import { Included } from "@/components/handoff-dialog";
 import { HistoryImport } from "@/components/history-import";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isCompleteCode, openHandoff, type HandoffConfig } from "@/lib/handoff";
+import {
+  CODE_LENGTH,
+  isCompleteCode,
+  openHandoff,
+  type HandoffConfig,
+} from "@/lib/handoff";
 
 interface Props {
   /** The `#handoff=` payload the link carried. */
@@ -38,7 +43,10 @@ export function HandoffReceive({
   onDone,
 }: Props) {
   const [step, setStep] = useState<Step>({ id: "code" });
-  const [code, setCode] = useState("");
+  const [chars, setChars] = useState<string[]>(() =>
+    Array<string>(CODE_LENGTH).fill(""),
+  );
+  const code = chars.join("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,17 +85,16 @@ export function HandoffReceive({
             Type the code shown next to the QR code to unlock them.
           </p>
           <div className="mt-4 grid gap-2">
-            <Label htmlFor="handoff-code">Code</Label>
-            <Input
-              id="handoff-code"
-              autoComplete="one-time-code"
-              autoCapitalize="characters"
-              spellCheck={false}
-              placeholder="ABCD-EFGH"
-              className="font-mono tracking-widest uppercase"
-              value={code}
-              onChange={(event) => setCode(event.target.value)}
-              aria-invalid={error ? true : undefined}
+            <Label id="handoff-code-label">Code</Label>
+            <CodeInput
+              labelledBy="handoff-code-label"
+              value={chars}
+              onChange={(next) => {
+                setChars(next);
+                setError(null);
+              }}
+              invalid={!!error}
+              disabled={busy}
             />
           </div>
           {error && (

@@ -33,7 +33,7 @@ const VERSION = 1;
 const SALT_BYTES = 16;
 const IV_BYTES = 12;
 const ITERATIONS = 600_000;
-const CODE_LENGTH = 8;
+export const CODE_LENGTH = 8;
 // Crockford base32: no I, L, O or U, so a typed code is hard to misread.
 const ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 const KINDS: readonly MediaKind[] = ["video", "image"];
@@ -104,6 +104,11 @@ export function isCompleteCode(typed: string): boolean {
     code.length === CODE_LENGTH &&
     [...code].every((char) => ALPHABET.includes(char))
   );
+}
+
+/** The code characters in typed or pasted text; anything else is dropped. */
+export function codeChars(typed: string): string[] {
+  return [...normalizeCode(typed)].filter((char) => ALPHABET.includes(char));
 }
 
 async function deriveKey(

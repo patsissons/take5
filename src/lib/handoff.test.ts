@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   applyHandoff,
+  codeChars,
   collectHandoff,
   formatCode,
   handoffLink,
@@ -47,6 +48,12 @@ describe("handoff codes", () => {
     expect(normalizeCode("o0il-1234")).toBe("00111234");
     expect(isCompleteCode("abcd-efg")).toBe(false);
     expect(isCompleteCode("abcd-efgu")).toBe(false);
+  });
+
+  it("keeps only code characters from typed or pasted text", () => {
+    expect(codeChars("ab-cd ef.gh")).toEqual([..."ABCDEFGH"]);
+    expect(codeChars("u!o")).toEqual(["0"]);
+    expect(codeChars("")).toEqual([]);
   });
 });
 
