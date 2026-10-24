@@ -1,9 +1,9 @@
 # take5
 
-Five-second AI videos, straight from your browser, served at
+Five-second AI videos and stills, straight from your browser, served at
 <https://take5.lgtm.page>. Pick a provider, paste your own API key, choose a
-video model, describe the clip (optionally with a reference image), watch
-the job run and get the video back.
+video or image model, describe the clip or picture (optionally with a
+reference image), watch the job run and get the video or image back.
 
 There is no server. Every request goes from your browser directly to the
 provider you picked; the only storage is in your browser. The app makes this
@@ -13,12 +13,21 @@ everything else.
 
 ## Providers
 
-| Provider           | Models from                   | Video comes back as        |
+| Provider           | Video models from             | Video comes back as        |
 | ------------------ | ----------------------------- | -------------------------- |
 | OpenRouter         | `/api/v1/videos/models`       | authenticated download     |
 | fal                | `api.fal.ai/v1/models`        | public media URL           |
 | Gemini (Veo)       | `v1beta/models`               | file fetched with your key |
 | xAI (Grok Imagine) | `/v1/video-generation-models` | URL                        |
+
+| Provider                 | Image models from                         | Image comes back as         |
+| ------------------------ | ----------------------------------------- | --------------------------- |
+| OpenRouter               | `/api/v1/images/models` (+ `/endpoints`)  | base64 in the answer        |
+| fal                      | `api.fal.ai/v1/models` (text/image→image) | public media URL, via queue |
+| Gemini (Nano Banana)     | `v1beta/models` (`generateContent`)       | base64 in the answer        |
+| xAI (Grok Imagine Image) | `/v1/image-generation-models`             | base64 in the answer        |
+
+No image needs a host beyond the ones video already uses.
 
 Each adapter in `src/providers/` implements the same interface; the UI never
 sees a provider-specific shape.
@@ -27,29 +36,38 @@ sees a provider-specific shape.
 
 1. **Setup** (first run): pick a provider, paste its API key (checked with
    one cheap request, then kept in `localStorage`, or `sessionStorage` when
-   "Remember on this device" is off), and pick a video model from the
-   provider's own list (cached locally, searchable, or a slug typed by
-   hand). The list is sorted best first by a bundled snapshot of the
+   "Remember on this device" is off), and pick a video or image model
+   (the Video | Image toggle) from the provider's own list (cached locally,
+   searchable, or a slug typed by hand). The list is sorted best first by a
+   bundled snapshot of the
    [Artificial Analysis Video Arena](https://artificialanalysis.ai/video/leaderboard/text-to-video)
+   or [Image Arena](https://artificialanalysis.ai/text-to-image/arena/leaderboard-text)
    Elo, shown on each ranked model; unranked models follow. A two-thumb
-   slider narrows the list by the cost of the cheapest 5 s clip (models
-   without a listed price drop out once it is narrowed). Later, "Change model" and "Change provider" reopen these steps
-   from the studio, and Cancel (or Esc) goes back without changes.
+   slider narrows the list by the cost of the cheapest 5 s clip or image
+   (models without a listed price drop out once it is narrowed). Later,
+   "Change model" and "Change provider" reopen these steps from the
+   studio, the toggle switches between the two kinds (each remembers its
+   own model), and Cancel (or Esc) goes back without changes.
 2. **Compose**: a prompt, optional reference or first/last-frame images
    (an added image is a reference when the model takes one, otherwise the
    next free frame; downscaled in the browser and sent inline as data
    URLs), and the
    controls the model supports: duration (defaults to the supported value
-   nearest 5 s), resolution, aspect ratio or size, audio. The estimated
-   cost shows when the model lists a per-second price.
+   nearest 5 s), resolution, aspect ratio or size, audio. A still has no
+   duration or audio, takes as many references as its model allows, and
+   an edit-only model waits for one. The estimated cost shows when the
+   model lists a per-second, per-image or per-megapixel price.
 3. **Run**: the job is submitted and watched live, with a timeline
    (submitted, queued, generating, done), an elapsed clock and a table of the raw
-   provider events. A reload resumes watching.
-4. **Result**: the clip plays from a blob kept in IndexedDB (so it outlives
-   the provider's URL), with download, copy prompt and remix, and the cost
-   next to how long the generation took.
+   provider events. A reload resumes watching. Images from OpenRouter,
+   Gemini and xAI come back in the answer to the request itself, so there
+   is nothing to watch or resume (a reload mid-request loses that one);
+   fal images queue and resume like videos.
+4. **Result**: the clip plays (or the image shows) from a blob kept in
+   IndexedDB (so it outlives the provider's URL), with download, copy
+   prompt and remix, and the cost next to how long the generation took.
 5. **History**: every run (prompt, settings, thumbnail, cost, generation time,
-   video) is
+   video or image) is
    listed below the composer with a storage meter, per-run delete and clear
    all. "Delete everything" (footer, and the Privacy page at `#privacy`)
    wipes keys, settings and the database.
@@ -63,7 +81,7 @@ sees a provider-specific shape.
   blocked by the browser.
 - No analytics, cookies, third-party scripts or fonts. `Referrer-Policy:
 no-referrer` means not even the provider learns which page sent the request.
-- Keys, settings and videos live in `localStorage` / IndexedDB on your
+- Keys, settings, videos and images live in `localStorage` / IndexedDB on your
   device, and "Delete everything" clears them.
 
 ## Stack

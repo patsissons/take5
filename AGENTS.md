@@ -63,23 +63,38 @@ Commit in small, modular units (one logical change per commit).
 - Mobile-friendly: page padding comes from the `safe-x` utility in
   `index.css`; `e2e/home.spec.ts` guards against horizontal scroll.
 - **Provider adapters are the only provider-specific code.** Each file in
-  `src/providers/` implements `MediaProvider` (`types.ts`): key check,
-  model list (normalised to `MediaModel`, pricing included), submit, a
-  `watch` generator that hides polling vs streaming behind `JobEvent`s, and
-  the video download. The UI, `src/lib/use-run.ts` and history only ever
-  see those neutral shapes. Adapters are unit-tested against recorded
+  `src/providers/` implements `MediaProvider` (`types.ts`): the kinds it
+  makes (`video`, `image`), key check, a model list per kind (normalised
+  to `MediaModel`, pricing included), submit, a `watch` generator that
+  hides polling vs streaming behind `JobEvent`s, and the media download.
+  The UI, `src/lib/use-run.ts` and history only ever see those neutral
+  shapes. Adapters are unit-tested against recorded
   fixtures in `src/providers/fixtures/`; `e2e/fixtures.ts` serves the same
   fixtures to the browser. A provider whose list carries no capabilities
   (fal; its prices are batch-fetched with the list, fifty endpoints per
   pricing call, so the picker can filter by cost) implements `inspectModel`, which the model picker calls on pick and
   whose result (field names in `MediaModel.extra`) is cached and echoed
   back on `MediaRequest.extra` at submit time.
+- **A synchronous image API answers at submit.** OpenRouter, Gemini and
+  xAI return the image in the response, so those adapters list `image` in
+  `answersAtSubmit` and return the ending as `JobRef.answer` (memory
+  only). `use-run.ts` settles it straight away and never stores the job,
+  so there is nothing to resume and a reload never sends the request
+  again. Inline bytes are decoded with `base64ToBlob` (the CSP's
+  `connect-src` blocks `data:` URLs) and `redactBase64` keeps them out of
+  the raw events table. fal images use the queue like video and resume.
+- **Image bytes never add a host.** Ask for inline base64 (xAI's
+  `response_format: "b64_json"`) or use a CDN already listed; fal's
+  `watch` fails a result outside `*.fal.media` with a clear message rather
+  than letting the browser block the download.
 - **Model ranking is a bundled snapshot.** `src/lib/model-ranking.ts`
-  holds arena Elo scores (fetching them would break the host list), matched
-  to any provider's model by family regex plus exact tier words (fast,
-  lite, pro, max…) so a cheaper tier never inherits its flagship's score.
-  Refresh it by hand from the leaderboard, update `ARENA.asOf`, and extend
-  `model-ranking.test.ts` with the new slugs.
+  holds arena Elo scores (fetching them would break the host list), one
+  table per kind in `ARENAS` (the video and the text-to-image arenas),
+  matched to any provider's model by family regex plus exact tier words
+  (fast, lite, pro, max…; images add flash, quality, klein, flex…) so a
+  cheaper tier never inherits its flagship's score and a video model never
+  takes an image model's. Refresh each by hand from its leaderboard,
+  update its `asOf`, and extend `model-ranking.test.ts` with the new slugs.
 - **The Privacy page is generated, not written.** `privacy-page.tsx` lists
   `providers[].hosts`, the same list the CSP is built from, so the page can
   never drift from the policy (`e2e/privacy.spec.ts` checks they match).
@@ -93,9 +108,16 @@ Commit in small, modular units (one logical change per commit).
 - **Storage degrades, never breaks.** `src/lib/settings.ts` (local/session
   storage) and `src/lib/history.ts` (IndexedDB) swallow every storage
   error and return empty results, so the app works in private mode.
+- **Each mode keeps its own model.** `take5:mode` is video or image;
+  video keeps the original `model:<provider>` / `models:<provider>` keys
+  and image uses `image-model:` / `image-models:`, so nothing migrates. A
+  run's kind is `request.kind` (missing means video). Images live in the
+  `videos` store and `Run.videoBytes`/`videoType` despite the names;
+  renaming stored fields needs a migration.
 - E2e is hermetic: specs stub every provider host with `page.route` and
   never reach the network. `seedSetup` skips the setup card by writing the
-  provider, key, model and cached model list straight into localStorage.
+  provider, key, model and cached model list straight into localStorage;
+  `seedProvider` does the same for any provider and either mode.
 - **Free to operate.** Cloudflare free tier only.
 
 ## Gotchas
