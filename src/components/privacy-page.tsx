@@ -68,13 +68,14 @@ export function PrivacyPage({ onDeleteEverything }: Props) {
           </li>
           <li>
             <strong className="text-foreground">Settings</strong>: the chosen
-            provider, the last model per provider, a cached copy of each
-            provider's model list, and the theme.
+            provider, whether you are making videos or images, the last model
+            per provider for each, a cached copy of each provider's model lists,
+            and the theme.
           </li>
           <li>
             <strong className="text-foreground">Runs</strong>: each prompt, its
             settings and images, the provider's job reference while it is in
-            flight, the finished video and a thumbnail, in IndexedDB.
+            flight, the finished video or image and a thumbnail, in IndexedDB.
           </li>
         </ul>
         <p className="text-sm text-muted-foreground">

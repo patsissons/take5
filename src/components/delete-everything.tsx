@@ -31,7 +31,7 @@ export function DeleteEverything({ onConfirm }: Props) {
           onConfirm();
         }}
       >
-        Really delete keys, settings and videos
+        Really delete keys, settings, videos and images
       </Button>
       <Button
         type="button"

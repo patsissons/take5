@@ -13,7 +13,7 @@ export function PrivacyBanner() {
     >
       <ShieldCheck aria-hidden className="size-4 shrink-0 text-primary" />
       <span>
-        Your key and videos never leave this browser except to go to the
+        Your key, videos and images never leave this browser except to go to the
         provider you pick.{" "}
         <a href="#privacy" className="underline hover:text-foreground">
           How that is enforced
