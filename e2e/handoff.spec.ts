@@ -125,3 +125,35 @@ test("a reload after the handoff link never asks again", async ({ page }) => {
     page.getByRole("heading", { name: "Pick a provider" }),
   ).toBeVisible();
 });
+
+test("long prompts wrap in the run list instead of widening the dialog", async ({
+  page,
+}) => {
+  await stubOpenRouter(page, { polls: ["completed"] });
+  await seedSetup(page);
+  await page.goto("/");
+  const prompt = `${"a very long prompt about a corgi surfing ".repeat(6)}${"x".repeat(80)}`;
+  await page.getByLabel("Prompt").fill(prompt);
+  await page.getByRole("button", { name: "Generate" }).click();
+  await expect(page.getByTestId("result-video")).toHaveAttribute(
+    "src",
+    /^blob:/,
+    { timeout: 15_000 },
+  );
+
+  await page.getByRole("button", { name: "Use on phone" }).click();
+  const dialog = page.getByRole("dialog", { name: "Use on your phone" });
+  await dialog.getByRole("switch", { name: /history and media/ }).click();
+  const runs = dialog.getByRole("list", { name: "Runs to bring" });
+  await expect(runs.getByRole("checkbox")).toHaveCount(1);
+  for (const box of [dialog, runs]) {
+    const overflow = await box.evaluate(
+      (el) => el.scrollWidth - el.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  }
+  const viewport = page.viewportSize()!;
+  const bounds = (await dialog.boundingBox())!;
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width);
+});
