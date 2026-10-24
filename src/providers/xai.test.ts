@@ -1,6 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import imageModels from "./fixtures/xai-image-models.json";
+import imageResult from "./fixtures/xai-image-result.json";
 import type { JobEvent, JobRef } from "./types";
-import { buildBody, KNOWN_MODELS, modelIds, normalizeModel, xai } from "./xai";
+import {
+  buildBody,
+  buildImageRequest,
+  imageAnswer,
+  KNOWN_IMAGE_MODELS,
+  KNOWN_MODELS,
+  modelIds,
+  normalizeImageModel,
+  normalizeModel,
+  xai,
+} from "./xai";
 
 function mockFetch(...responses: Response[]) {
   const calls: Array<{ url: string; init?: RequestInit }> = [];
@@ -166,5 +178,108 @@ describe("xai", () => {
         error: "Prompt cannot be empty",
       }),
     ]);
+  });
+});
+
+describe("xai images", () => {
+  const [v2, base, textOnly] = imageModels.models;
+
+  it("prices each resolution at its cheapest quality, in ticks", () => {
+    expect(normalizeImageModel(v2!)).toMatchObject({
+      kind: "image",
+      name: "Grok Imagine Image 2.0",
+      referenceImages: true,
+      maxImages: 5,
+      resolutions: ["1k", "2k"],
+      pricing: {
+        kind: "per-image",
+        rates: [
+          { usd: 0.04, resolution: "1k" },
+          { usd: 0.06, resolution: "2k" },
+        ],
+      },
+    });
+    // No price table: the documented flat price, not image_price.
+    expect(normalizeImageModel(base!).pricing).toEqual({
+      kind: "per-image",
+      rates: [{ usd: 0.02 }],
+    });
+    expect(normalizeImageModel(textOnly!)).toMatchObject({
+      referenceImages: false,
+      pricing: null,
+    });
+  });
+
+  it("generates from a prompt and edits with one image or several", () => {
+    const req = {
+      kind: "image" as const,
+      model: "grok-imagine-image",
+      prompt: "p",
+      aspectRatio: "1:1",
+      resolution: "1k",
+    };
+    expect(buildImageRequest({ ...req, images: [] })).toEqual({
+      path: "/images/generations",
+      body: {
+        model: "grok-imagine-image",
+        prompt: "p",
+        response_format: "b64_json",
+        aspect_ratio: "1:1",
+        resolution: "1k",
+      },
+    });
+    const one = buildImageRequest({
+      ...req,
+      images: [{ role: "reference", dataUrl: "data:a" }],
+    });
+    expect(one.path).toBe("/images/edits");
+    expect(one.body.image).toEqual({ url: "data:a", type: "image_url" });
+    expect(one.body).not.toHaveProperty("images");
+    const two = buildImageRequest({
+      ...req,
+      images: [
+        { role: "reference", dataUrl: "data:a" },
+        { role: "reference", dataUrl: "data:b" },
+      ],
+    });
+    expect(two.body.images).toHaveLength(2);
+    expect(two.body).not.toHaveProperty("image");
+  });
+
+  it("decodes the image and converts ticks to dollars", () => {
+    expect(imageAnswer(imageResult)).toMatchObject({
+      kind: "completed",
+      result: { costUsd: 0.04 },
+    });
+    expect(imageAnswer({ data: [{ b64_json: null }] })).toMatchObject({
+      kind: "failed",
+      error: "No image in the result",
+    });
+  });
+
+  it("lists image models, or the documented set when the endpoint fails", async () => {
+    const calls = mockFetch(Response.json(imageModels));
+    const listed = await xai.listModels("k", "image");
+    expect(calls[0]!.url).toBe("https://api.x.ai/v1/image-generation-models");
+    expect(listed.map((m) => m.id)).toEqual(
+      imageModels.models.map((m) => m.id),
+    );
+
+    mockFetch(new Response("gone", { status: 404 }));
+    expect((await xai.listModels("k", "image")).map((m) => m.id)).toEqual(
+      KNOWN_IMAGE_MODELS.map((m) => m.id),
+    );
+  });
+
+  it("answers an image request at submit", async () => {
+    const calls = mockFetch(Response.json(imageResult));
+    const ref = await xai.submit("k", {
+      kind: "image",
+      model: "grok-imagine-image",
+      prompt: "p",
+      images: [{ role: "reference", dataUrl: "data:a" }],
+    });
+    expect(calls[0]!.url).toBe("https://api.x.ai/v1/images/edits");
+    expect(ref.answer?.kind).toBe("completed");
   });
 });
