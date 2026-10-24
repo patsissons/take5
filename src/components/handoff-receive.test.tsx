@@ -29,7 +29,7 @@ async function setup(history = false, replacing = false) {
       onDone={onDone}
     />,
   );
-  const input = screen.getByLabelText("Code");
+  const input = screen.getByLabelText("Character 1 of 8");
   const unlock = screen.getByRole("button", { name: "Unlock" });
   return { user, input, unlock, onApply, onDone };
 }
@@ -38,17 +38,24 @@ describe("HandoffReceive", () => {
   it("says so when the code is wrong", async () => {
     const { user, input, unlock, onApply } = await setup();
     expect(unlock).toBeDisabled();
-    await user.type(input, "abcd-0124");
+    await user.click(input);
+    await user.keyboard("abcd-0124");
     await user.click(unlock);
     expect(
       await screen.findByRole("alert", {}, { timeout: 5000 }),
     ).toHaveTextContent(/doesn't match/);
     expect(onApply).not.toHaveBeenCalled();
+    // Fixing the code clears the message.
+    await user.click(screen.getByLabelText("Character 8 of 8"));
+    await user.keyboard("3");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(unlock).toBeEnabled();
   }, 10_000);
 
   it("previews, warns about replacing, then imports", async () => {
     const { user, input, unlock, onApply, onDone } = await setup(false, true);
-    await user.type(input, "abcd 0123");
+    await user.click(input);
+    await user.keyboard("abcd 0123");
     await user.click(unlock);
     expect(
       await screen.findByText("sk-or-…cdef", {}, { timeout: 5000 }),
@@ -63,7 +70,8 @@ describe("HandoffReceive", () => {
 
   it("asks for the history file when one is on its way", async () => {
     const { user, input, unlock, onDone } = await setup(true);
-    await user.type(input, "ABCD0123");
+    await user.click(input);
+    await user.keyboard("ABCD0123");
     await user.click(unlock);
     await user.click(
       await screen.findByRole("button", { name: "Import" }, { timeout: 5000 }),
