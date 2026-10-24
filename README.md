@@ -72,6 +72,29 @@ sees a provider-specific shape.
    all. "Delete everything" (footer, and the Privacy page at `#privacy`)
    wipes keys, settings and the database.
 
+## Moving to your phone
+
+"Use on phone" (in the studio bar) shows a QR code and an eight-character
+code. Scan the QR with the phone's camera: it opens take5 with your
+provider, keys, mode and model choices in the link's `#handoff=` fragment,
+which browsers never send to the server. That payload is AES-GCM encrypted
+with a key derived from the code (PBKDF2), so the link alone, say in a
+synced browser history, is useless. The phone strips the fragment from
+the address bar on arrival, and the link expires after ten minutes. Type
+the code on the phone, check what is coming and import. The model lists
+stay behind, so the phone fetches its own.
+
+History and media are optional (off by default) and too big for a QR.
+Switch on "Also bring history and media" to download a `.take5` file
+(finished runs and their videos and images, no keys), send it to the phone
+yourself (AirDrop, Nearby Share, Files) and pick it under "Import history
+file". Runs the phone already has are skipped. Nothing in a handoff goes
+over the network.
+
+WebCrypto needs a secure context: the dev server reached from a phone at a
+LAN `http://` address cannot unlock a link. Use the PR preview deploy
+(https) for a real-phone check.
+
 ## Privacy, enforced
 
 - `src/providers/hosts.ts` lists every host the app may contact.
@@ -82,7 +105,9 @@ sees a provider-specific shape.
 - No analytics, cookies, third-party scripts or fonts. `Referrer-Policy:
 no-referrer` means not even the provider learns which page sent the request.
 - Keys, settings, videos and images live in `localStorage` / IndexedDB on your
-  device, and "Delete everything" clears them.
+  device, and "Delete everything" clears them. A handoff to your phone
+  travels in an encrypted QR link and a file you send yourself, never
+  through a server.
 
 ## Stack
 

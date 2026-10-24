@@ -82,6 +82,12 @@ export function PrivacyPage({ onDeleteEverything }: Props) {
           Nothing is sent anywhere else, so nothing can be recovered if you
           delete it.
         </p>
+        <p className="text-sm text-muted-foreground">
+          <strong className="text-foreground">Use on phone</strong> moves your
+          settings and keys inside the QR code's link, encrypted with a code you
+          type on the phone, and your history as a file you send across yourself
+          (it holds no keys). Neither goes through a server.
+        </p>
         <div>
           <Button
             type="button"
