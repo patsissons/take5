@@ -4,6 +4,7 @@ import { Composer } from "@/components/composer";
 import { DeleteEverything } from "@/components/delete-everything";
 import { GitHubIcon } from "@/components/github-icon";
 import { HistoryGallery } from "@/components/history-gallery";
+import { ModeToggle } from "@/components/mode-toggle";
 import { PrivacyBanner } from "@/components/privacy-banner";
 import { PrivacyPage } from "@/components/privacy-page";
 import { ResultView } from "@/components/result-view";
@@ -13,13 +14,14 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { deleteDatabase, runKind, type Run } from "@/lib/history";
 import { REPO_URL } from "@/lib/links";
+import { getLastModel } from "@/lib/settings";
 import { useHash } from "@/lib/use-hash";
 import { useHistory } from "@/lib/use-history";
 import { isFinished, useRun } from "@/lib/use-run";
 import { resolveModel, useSettings } from "@/lib/use-settings";
 import { providerById, providers } from "@/providers";
 import type { ProviderId } from "@/providers/hosts";
-import type { MediaModel, MediaRequest } from "@/providers/types";
+import type { MediaKind, MediaModel, MediaRequest } from "@/providers/types";
 
 export default function App() {
   const view = useHash();
@@ -31,9 +33,13 @@ export default function App() {
   const [setup, setSetup] = useState<SetupStep | null>(() =>
     ready ? null : "provider",
   );
-  // The provider to go back to when a visitor backs out of "Change model"
-  // or "Change provider" from the studio.
-  const [returnTo, setReturnTo] = useState<ProviderId | null>(null);
+  // The provider and mode to go back to when a visitor backs out of
+  // "Change model", "Change provider" or a switch to a mode with no model
+  // yet, from the studio.
+  const [returnTo, setReturnTo] = useState<{
+    provider: ProviderId;
+    mode: MediaKind;
+  } | null>(null);
   const [remix, setRemix] = useState<Partial<MediaRequest> | undefined>();
   const model = useMemo<MediaModel | undefined>(
     () =>
@@ -68,11 +74,13 @@ export default function App() {
 
   const onRemix = useCallback(
     (from: Run) => {
+      const kind = runKind(from);
+      if (kind !== settings.mode) settings.chooseMode(kind);
       if (from.provider !== provider?.id) {
         settings.chooseProvider(from.provider);
       }
-      if (from.request.model !== settings.model) {
-        settings.chooseModel(from.provider, from.request.model, runKind(from));
+      if (from.request.model !== settings.model || kind !== settings.mode) {
+        settings.chooseModel(from.provider, from.request.model, kind);
       }
       setRemix(from.request);
       run.clear();
@@ -82,13 +90,24 @@ export default function App() {
   );
 
   const change = (step: SetupStep) => {
-    if (provider) setReturnTo(provider.id);
+    if (provider) setReturnTo({ provider: provider.id, mode: settings.mode });
     setSetup(step);
   };
 
+  /** Switches mode; without a model for it yet, picking one comes first. */
+  const switchMode = (mode: MediaKind) => {
+    if (!provider) return;
+    const known = getLastModel(provider.id, mode);
+    if (!known) change("model");
+    settings.chooseMode(mode);
+  };
+
   const cancelSetup = useCallback(() => {
-    if (returnTo && returnTo !== settings.provider) {
-      settings.chooseProvider(returnTo);
+    if (returnTo && returnTo.mode !== settings.mode) {
+      settings.chooseMode(returnTo.mode);
+    }
+    if (returnTo && returnTo.provider !== settings.provider) {
+      settings.chooseProvider(returnTo.provider);
     }
     setReturnTo(null);
     setSetup(null);
@@ -121,7 +140,7 @@ export default function App() {
               </a>
             </h1>
             <p className="mt-3 max-w-xl text-lg text-muted-foreground">
-              Five-second AI videos, straight from your browser.
+              Five-second AI videos and stills, straight from your browser.
             </p>
           </div>
           <ThemeToggle />
@@ -148,6 +167,12 @@ export default function App() {
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground"
                 data-testid="studio-bar"
               >
+                <ModeToggle
+                  mode={settings.mode}
+                  kinds={provider.kinds}
+                  disabled={busy}
+                  onChange={switchMode}
+                />
                 <span>
                   <span className="font-medium text-foreground">
                     {provider.label}
@@ -187,7 +212,7 @@ export default function App() {
               </div>
 
               <Composer
-                key={`${model.id}:${remix ? "remix" : "fresh"}`}
+                key={`${model.kind}:${model.id}:${remix ? "remix" : "fresh"}`}
                 model={model}
                 initial={remix}
                 busy={busy}

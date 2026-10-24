@@ -1,5 +1,6 @@
 import { ExternalLink, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
+import { ModeToggle } from "@/components/mode-toggle";
 import { ModelPicker } from "@/components/model-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,13 +133,21 @@ export function SetupCard({
 
       {step === "model" && provider && settings.key && (
         <>
-          <h2 id="setup-title" className="text-lg font-semibold">
-            Choose a model
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="setup-title" className="text-lg font-semibold">
+              Choose a model
+            </h2>
+            <ModeToggle
+              mode={settings.mode}
+              kinds={provider.kinds}
+              onChange={settings.chooseMode}
+            />
+          </div>
           <p className="mt-1 mb-4 text-sm text-muted-foreground">
             Only {provider.label}'s {settings.mode} models are listed.
           </p>
           <ModelPicker
+            key={`${provider.id}:${settings.mode}`}
             provider={provider}
             apiKey={settings.key}
             kind={settings.mode}
