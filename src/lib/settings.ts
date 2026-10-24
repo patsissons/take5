@@ -55,7 +55,7 @@ function readJson<T>(key: string): T | null {
   }
 }
 
-const PROVIDER_IDS: readonly ProviderId[] = [
+export const PROVIDER_IDS: readonly ProviderId[] = [
   "openrouter",
   "fal",
   "gemini",
