@@ -57,7 +57,7 @@ export function HistoryPicker({ runs, excluded, onChange }: Props) {
               />
               <Label
                 htmlFor={id}
-                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 font-normal"
+                className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 leading-snug font-normal"
               >
                 {run.thumbnail ? (
                   <img
@@ -71,7 +71,9 @@ export function HistoryPicker({ runs, excluded, onChange }: Props) {
                   </span>
                 )}
                 <span className="flex min-w-0 flex-col">
-                  <span className="truncate">{run.request.prompt}</span>
+                  <span className="line-clamp-2 wrap-anywhere">
+                    {run.request.prompt}
+                  </span>
                   <span className="text-xs text-muted-foreground">
                     {run.status === "failed"
                       ? "Failed"
