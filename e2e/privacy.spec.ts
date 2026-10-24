@@ -32,7 +32,9 @@ test("delete everything empties local and session storage and IndexedDB", async 
 
   await page.getByRole("button", { name: "Delete everything" }).click();
   await page
-    .getByRole("button", { name: "Really delete keys, settings and videos" })
+    .getByRole("button", {
+      name: "Really delete keys, settings, videos and images",
+    })
     .click();
   await expect(page.getByRole("list", { name: "Providers" })).toBeVisible();
   const state = await page.evaluate(async () => ({

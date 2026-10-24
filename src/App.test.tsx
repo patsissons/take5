@@ -117,7 +117,7 @@ describe("App", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("note")).toHaveTextContent(
-      "Your key and videos never leave this browser",
+      "Your key, videos and images never leave this browser",
     );
     expect(
       screen.getByRole("link", { name: "Source on GitHub" }),
@@ -395,7 +395,7 @@ describe("App history, resume and delete everything", () => {
     await user.click(screen.getByRole("button", { name: "Delete everything" }));
     await user.click(
       screen.getByRole("button", {
-        name: "Really delete keys, settings and videos",
+        name: "Really delete keys, settings, videos and images",
       }),
     );
     await waitFor(() =>
