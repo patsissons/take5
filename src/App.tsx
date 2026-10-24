@@ -46,12 +46,14 @@ export default function App() {
     mode: MediaKind;
   } | null>(null);
   const [remix, setRemix] = useState<Partial<MediaRequest> | undefined>();
+  // Resolved again when setup closes: a handed-off model only gets its
+  // cached record once the picker has fetched the list.
   const model = useMemo<MediaModel | undefined>(
     () =>
-      provider && settings.model
+      provider && settings.model && !setup
         ? resolveModel(provider.id, settings.model, settings.mode)
         : undefined,
-    [provider, settings.model, settings.mode],
+    [provider, settings.model, settings.mode, setup],
   );
   const run = useRun(provider, settings.key);
   const history = useHistory();
