@@ -8,10 +8,12 @@ import {
   getRun,
   getMedia,
   listRuns,
+  mediaFileName,
   newRunId,
   putRun,
   putMedia,
   resetDb,
+  runKind,
   type Run,
 } from "./history";
 
@@ -54,6 +56,36 @@ describe("history", () => {
     await putRun(run("c", 1));
     await deleteDatabase();
     expect(await listRuns()).toEqual([]);
+  });
+
+  it("names downloads by what was stored", () => {
+    const a = run("a", 1);
+    const still = { ...a, request: { ...a.request, kind: "image" as const } };
+    expect(mediaFileName(a)).toBe("take5-a.mp4");
+    expect(mediaFileName({ ...a, videoType: "video/webm" })).toBe(
+      "take5-a.webm",
+    );
+    expect(mediaFileName({ ...still, videoType: "image/png" })).toBe(
+      "take5-a.png",
+    );
+    expect(mediaFileName({ ...still, videoType: "image/jpeg" })).toBe(
+      "take5-a.jpg",
+    );
+    expect(mediaFileName({ ...still, videoType: "image/webp" })).toBe(
+      "take5-a.webp",
+    );
+    expect(mediaFileName(still)).toBe("take5-a.png");
+  });
+
+  it("reads runs from before stills as videos", () => {
+    const a = run("a", 1);
+    expect(runKind(a)).toBe("video");
+    expect(runKind({ request: { ...a.request, kind: "image" } })).toBe("image");
+  });
+
+  it("keeps an image's bytes and type", async () => {
+    await putMedia("a", new Blob(["png"], { type: "image/png" }));
+    expect((await getMedia("a"))?.type).toBe("image/png");
   });
 
   it("makes unique ids", () => {
