@@ -34,6 +34,14 @@ test("a phone scans the desktop's QR, types the code and gets the setup and hist
   expect(link).not.toContain("sk-or");
   expect(code).toMatch(/^[0-9A-Z]{4}-[0-9A-Z]{4}$/);
 
+  await expect(
+    dialog.getByRole("checkbox", { name: "Select all" }),
+  ).toBeChecked();
+  await expect(
+    dialog
+      .getByRole("list", { name: "Runs to bring" })
+      .getByRole("checkbox", { name: /handed-off clip/ }),
+  ).toBeChecked();
   const downloading = page.waitForEvent("download");
   await dialog.getByRole("button", { name: /Download history file/ }).click();
   const download = await downloading;

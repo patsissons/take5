@@ -32,10 +32,10 @@ export interface Backup {
   bytes: number;
 }
 
-/** Every finished run with its media, as one file. */
-export async function exportBackup(): Promise<Backup> {
+/** Finished runs (all, or just the chosen ids) with their media, as one file. */
+export async function exportBackup(ids?: ReadonlySet<string>): Promise<Backup> {
   const runs = (await listRuns())
-    .filter((run) => run.status !== "running")
+    .filter((run) => run.status !== "running" && (!ids || ids.has(run.id)))
     .map(({ job: _job, ...run }) => run);
   const media: Manifest["media"] = [];
   const parts: Blob[] = [];
