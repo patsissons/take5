@@ -101,17 +101,17 @@ describe("xai", () => {
 
   it("lists models from the endpoint, or the documented set when it is unavailable", async () => {
     mockFetch(Response.json({ models: [{ id: "grok-imagine-video-1.5" }] }));
-    expect((await xai.listModels("k")).map((m) => m.id)).toEqual([
+    expect((await xai.listModels("k", "video")).map((m) => m.id)).toEqual([
       "grok-imagine-video-1.5",
     ]);
 
     mockFetch(new Response("gone", { status: 404 }));
-    expect((await xai.listModels("k")).map((m) => m.id)).toEqual(
+    expect((await xai.listModels("k", "video")).map((m) => m.id)).toEqual(
       KNOWN_MODELS.map((m) => m.id),
     );
 
     mockFetch(new Response("bad key", { status: 401 }));
-    await expect(xai.listModels("k")).rejects.toThrow("bad key");
+    await expect(xai.listModels("k", "video")).rejects.toThrow("bad key");
   });
 
   it("submits and polls to a video URL", async () => {

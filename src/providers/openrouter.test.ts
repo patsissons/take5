@@ -1,13 +1,22 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fixture from "./fixtures/openrouter-models.json";
+import imageEndpoints from "./fixtures/openrouter-image-endpoints.json";
+import imageFixture from "./fixtures/openrouter-image-models.json";
+import imageResult from "./fixtures/openrouter-image-result.json";
 import { ProviderError } from "./http";
 import {
   buildBody,
+  buildImageBody,
+  imageAnswer,
   isGenerationModel,
   mapStatus,
+  normalizeImageModel,
   normalizeModel,
   openrouter,
+  pricingFromEndpoints,
   pricingFromSkus,
+  type ImageEndpoints,
+  type OpenRouterImageModel,
   type OpenRouterJob,
   type OpenRouterModel,
 } from "./openrouter";
@@ -197,7 +206,7 @@ describe("openrouter", () => {
 
   it("lists only generation models", async () => {
     mockFetch(Response.json(fixture));
-    const list = await openrouter.listModels("k");
+    const list = await openrouter.listModels("k", "video");
     expect(list.map((model) => model.id)).not.toContain(
       "black-forest-labs/flux-video-edit",
     );
@@ -319,5 +328,183 @@ describe("openrouter", () => {
       "https://openrouter.ai/api/v1/videos/gen-vid-1/content?index=0",
     );
     expect(calls[0]!.init?.headers).toEqual({ authorization: "Bearer k" });
+  });
+});
+
+const imageModels = imageFixture.data as unknown as OpenRouterImageModel[];
+const imageById = (id: string) => imageModels.find((m) => m.id === id)!;
+const endpoints = imageEndpoints as unknown as Record<string, ImageEndpoints>;
+
+describe("normalizeImageModel", () => {
+  it("reads resolutions, aspect ratios and how many references it takes", () => {
+    expect(
+      normalizeImageModel(imageById("qwen/qwen-image-2.1-turbo")),
+    ).toMatchObject({
+      kind: "image",
+      frameImages: [],
+      referenceImages: true,
+      maxImages: 4,
+      resolutions: ["1K", "2K"],
+      aspectRatios: expect.arrayContaining(["1:1", "16:9"]),
+      durations: null,
+      audio: null,
+    });
+  });
+
+  it("marks edit-only models and models that take no image", () => {
+    expect(normalizeImageModel(imageById("krea/k3-edit"))).toMatchObject({
+      imageRequired: true,
+      maxImages: 8,
+    });
+    const flash = normalizeImageModel(imageById("recraft/recraft-v4.1-flash"));
+    expect(flash.referenceImages).toBe(false);
+    expect(flash.maxImages).toBeUndefined();
+    expect(flash.resolutions).toBeNull();
+    // No parameters listed at all: nothing to send but the prompt.
+    expect(normalizeImageModel(imageById("meta/muse-image"))).toMatchObject({
+      referenceImages: false,
+      aspectRatios: null,
+    });
+  });
+});
+
+describe("pricingFromEndpoints", () => {
+  it("keeps the cheapest output price per resolution", () => {
+    expect(
+      pricingFromEndpoints(endpoints["x-ai/grok-imagine-image-2.0"]),
+    ).toEqual({
+      kind: "per-image",
+      rates: [
+        { usd: 0.04, resolution: "1K" },
+        { usd: 0.06, resolution: "2K" },
+      ],
+    });
+    expect(
+      pricingFromEndpoints(endpoints["recraft/recraft-v4.1-flash"]),
+    ).toEqual({ kind: "per-image", rates: [{ usd: 0.007 }] });
+  });
+
+  it("reads megapixel and token prices, and no price at all", () => {
+    expect(
+      pricingFromEndpoints(endpoints["black-forest-labs/flux.2-pro"]),
+    ).toEqual({ kind: "per-megapixel", usd: 0.03 });
+    expect(pricingFromEndpoints(endpoints["openai/gpt-image-2"])).toEqual({
+      kind: "unknown",
+      note: "Priced per image token",
+    });
+    expect(pricingFromEndpoints(endpoints["krea/k3-edit"])).toBeNull();
+    expect(pricingFromEndpoints(undefined)).toBeNull();
+  });
+});
+
+describe("buildImageBody", () => {
+  it("sends the prompt, shape and references", () => {
+    expect(
+      buildImageBody({
+        kind: "image",
+        model: "m",
+        prompt: "p",
+        resolution: "2K",
+        aspectRatio: "1:1",
+        images: [{ role: "reference", dataUrl: "data:image/png;base64,AA" }],
+      }),
+    ).toEqual({
+      model: "m",
+      prompt: "p",
+      resolution: "2K",
+      aspect_ratio: "1:1",
+      input_references: [
+        { type: "image_url", image_url: { url: "data:image/png;base64,AA" } },
+      ],
+    });
+  });
+});
+
+describe("imageAnswer", () => {
+  it("decodes the image and reports the cost", () => {
+    const answer = imageAnswer(imageResult);
+    expect(answer.kind).toBe("completed");
+    if (answer.kind !== "completed") return;
+    expect(answer.result.costUsd).toBe(0.04);
+    expect(answer.result.media?.type).toBe("image/png");
+    expect(answer.result.media?.size).toBe(70);
+  });
+
+  it("keeps a real image's base64 out of the raw event", () => {
+    const big = "A".repeat(4000);
+    const answer = imageAnswer({
+      ...imageResult,
+      data: [{ b64_json: big, media_type: "image/png" }],
+    });
+    expect(answer.kind === "completed" && answer.result.media?.size).toBe(3000);
+    expect(JSON.stringify(answer.raw)).not.toContain(big);
+  });
+
+  it("fails when no image came back", () => {
+    expect(imageAnswer({ data: [] })).toMatchObject({
+      kind: "failed",
+      error: "No image in the result",
+    });
+  });
+});
+
+describe("openrouter images", () => {
+  it("lists image models with their prices; a missing price leaves one unpriced", async () => {
+    const calls = mockFetch(
+      Response.json(imageFixture),
+      ...imageModels.map((model) =>
+        endpoints[model.id]
+          ? Response.json(endpoints[model.id])
+          : Response.json({ error: { message: "nope" } }, { status: 404 }),
+      ),
+    );
+    const list = await openrouter.listModels("k", "image");
+    expect(calls[0]!.url).toBe("https://openrouter.ai/api/v1/images/models");
+    expect(calls.slice(1).map((call) => call.url)).toContain(
+      "https://openrouter.ai/api/v1/images/models/x-ai/grok-imagine-image-2.0/endpoints",
+    );
+    expect(list).toHaveLength(imageModels.length);
+    expect(list.every((model) => model.kind === "image")).toBe(true);
+    const priced = Object.fromEntries(list.map((m) => [m.id, m.pricing]));
+    expect(priced["black-forest-labs/flux.2-pro"]).toEqual({
+      kind: "per-megapixel",
+      usd: 0.03,
+    });
+    expect(priced["meta/muse-image"]).toBeNull();
+  });
+
+  it("answers an image request at submit", async () => {
+    const calls = mockFetch(Response.json(imageResult));
+    const ref = await openrouter.submit("k", {
+      kind: "image",
+      model: "x-ai/grok-imagine-image-2.0",
+      prompt: "a fox",
+      resolution: "1K",
+      images: [],
+    });
+    expect(calls[0]!.url).toBe("https://openrouter.ai/api/v1/images");
+    expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({
+      model: "x-ai/grok-imagine-image-2.0",
+      prompt: "a fox",
+      resolution: "1K",
+    });
+    expect(ref.answer).toMatchObject({
+      kind: "completed",
+      result: { costUsd: 0.04 },
+    });
+  });
+
+  it("passes a failed generation on as an error", async () => {
+    mockFetch(
+      Response.json(
+        { error: { message: "Generation failed", code: 502 } },
+        { status: 502 },
+      ),
+    );
+    const error = await openrouter
+      .submit("k", { kind: "image", model: "m", prompt: "p", images: [] })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ProviderError);
+    expect((error as ProviderError).message).toBe("Generation failed");
   });
 });

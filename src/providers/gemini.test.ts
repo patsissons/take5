@@ -132,7 +132,7 @@ describe("gemini", () => {
         ],
       }),
     );
-    const models = await gemini.listModels("AIza");
+    const models = await gemini.listModels("AIza", "video");
     expect(models.map((m) => m.id)).toEqual(["veo-3.1-fast-generate-preview"]);
     expect(calls[0]!.init?.headers).toEqual({ "x-goog-api-key": "AIza" });
   });

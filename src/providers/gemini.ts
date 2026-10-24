@@ -118,6 +118,7 @@ export const gemini: MediaProvider = {
   keyUrl: "https://aistudio.google.com/app/apikey",
   keyHint: "AIza…",
   hosts: PROVIDER_HOSTS.gemini,
+  kinds: ["video"],
   canCancel: false,
 
   async validateKey(key, signal): Promise<KeyInfo> {
@@ -128,7 +129,8 @@ export const gemini: MediaProvider = {
     return {};
   },
 
-  async listModels(key, signal): Promise<MediaModel[]> {
+  async listModels(key, kind, signal): Promise<MediaModel[]> {
+    if (kind !== "video") return [];
     const models: GeminiModel[] = [];
     let pageToken: string | undefined;
     do {

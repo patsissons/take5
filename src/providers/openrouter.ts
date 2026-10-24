@@ -1,5 +1,13 @@
 import { PROVIDER_HOSTS } from "./hosts";
-import { jsonInit, request, requestJson, sleep } from "./http";
+import {
+  base64ToBlob,
+  isAbort,
+  jsonInit,
+  redactBase64,
+  request,
+  requestJson,
+  sleep,
+} from "./http";
 import type {
   FrameRole,
   JobEvent,
@@ -7,15 +15,19 @@ import type {
   JobResult,
   JobStatus,
   KeyInfo,
+  PerImageRate,
   PerSecondRate,
   Pricing,
   MediaModel,
   MediaProvider,
   MediaRequest,
+  TerminalEvent,
 } from "./types";
 
 const API = "https://openrouter.ai/api/v1";
 const POLL_MS = 3000;
+/** How many image models' prices are fetched at once. */
+const PRICE_CONCURRENCY = 8;
 
 /** GET /api/v1/videos/models, one entry. */
 export interface OpenRouterModel {
@@ -48,6 +60,40 @@ export interface OpenRouterJob {
   error?: string;
   urls?: string[];
   unsigned_urls?: string[];
+  usage?: { cost?: number | null };
+}
+
+/** A parameter an image model accepts, as GET /api/v1/images/models lists it. */
+export type ImageParameter =
+  | { type: "enum"; values: string[] }
+  | { type: "range"; min: number; max: number }
+  | { type: "boolean" };
+
+/** GET /api/v1/images/models, one entry. */
+export interface OpenRouterImageModel {
+  id: string;
+  name: string;
+  description?: string;
+  architecture?: { input_modalities?: string[]; output_modalities?: string[] };
+  supported_parameters?: Record<string, ImageParameter>;
+}
+
+/** GET /api/v1/images/models/{id}/endpoints, one price line. */
+export interface ImagePrice {
+  billable: string;
+  unit: string;
+  cost_usd: number;
+  variant?: string;
+}
+
+export interface ImageEndpoints {
+  id: string;
+  endpoints: Array<{ provider_name?: string; pricing?: ImagePrice[] }>;
+}
+
+/** POST /api/v1/images. */
+export interface OpenRouterImageResult {
+  data?: Array<{ b64_json?: string; media_type?: string }>;
   usage?: { cost?: number | null };
 }
 
@@ -115,6 +161,160 @@ export function normalizeModel(model: OpenRouterModel): MediaModel {
   };
 }
 
+function enumValues(param: ImageParameter | undefined): string[] | null {
+  return param?.type === "enum" && param.values.length ? param.values : null;
+}
+
+export function normalizeImageModel(model: OpenRouterImageModel): MediaModel {
+  const params = model.supported_parameters ?? {};
+  const references = params.input_references;
+  const maxImages = references?.type === "range" ? references.max : 0;
+  return {
+    provider: "openrouter",
+    kind: "image",
+    id: model.id,
+    name: model.name,
+    description: model.description,
+    frameImages: [],
+    // Only models that list input_references take them.
+    referenceImages: maxImages > 0,
+    ...(maxImages > 0 ? { maxImages } : {}),
+    ...(references?.type === "range" && references.min > 0
+      ? { imageRequired: true }
+      : {}),
+    audio: null,
+    durations: null,
+    resolutions: enumValues(params.resolution),
+    aspectRatios: enumValues(params.aspect_ratio),
+    sizes: enumValues(params.size),
+    pricing: null,
+  };
+}
+
+/**
+ * An image model's price, from the first endpoint that lists one. Only the
+ * output image counts. Per-image variants carry the resolution in their
+ * name (`low_1k`, `medium_2k`, `1k`); the cheapest per resolution is kept.
+ */
+export function pricingFromEndpoints(
+  data: ImageEndpoints | undefined,
+): Pricing | null {
+  const lines =
+    data?.endpoints
+      .map((endpoint) =>
+        (endpoint.pricing ?? []).filter((p) => p.billable === "output_image"),
+      )
+      .find((output) => output.length) ?? [];
+  if (!lines.length) return null;
+  if (lines.every((line) => line.unit === "image")) {
+    const byResolution = new Map<string | undefined, number>();
+    for (const line of lines) {
+      const resolution = /(?:^|_)(\d+(?:\.\d+)?k|\d{3,4})(?:_|$)/i
+        .exec(line.variant ?? "")?.[1]
+        ?.toUpperCase();
+      const known = byResolution.get(resolution);
+      if (known === undefined || line.cost_usd < known) {
+        byResolution.set(resolution, line.cost_usd);
+      }
+    }
+    const rates: PerImageRate[] = [...byResolution].map(([resolution, usd]) =>
+      resolution ? { usd, resolution } : { usd },
+    );
+    return { kind: "per-image", rates };
+  }
+  const megapixel = lines.find((line) => line.unit === "megapixel");
+  if (megapixel) return { kind: "per-megapixel", usd: megapixel.cost_usd };
+  if (lines.some((line) => line.unit === "token")) {
+    return { kind: "unknown", note: "Priced per image token" };
+  }
+  const first = lines[0]!;
+  return { kind: "unknown", note: `$${first.cost_usd} per ${first.unit}` };
+}
+
+export function buildImageBody(req: MediaRequest): Record<string, unknown> {
+  const body: Record<string, unknown> = {
+    model: req.model,
+    prompt: req.prompt,
+  };
+  if (req.size) body.size = req.size;
+  else {
+    if (req.resolution) body.resolution = req.resolution;
+    if (req.aspectRatio) body.aspect_ratio = req.aspectRatio;
+  }
+  if (req.images.length) {
+    body.input_references = req.images.map((image) => ({
+      type: "image_url",
+      image_url: { url: image.dataUrl },
+    }));
+  }
+  return body;
+}
+
+/** The finished image, or why there is none, as the run's ending. */
+export function imageAnswer(result: OpenRouterImageResult): TerminalEvent {
+  const at = Date.now();
+  const raw = redactBase64(result);
+  const image = result.data?.[0];
+  if (!image?.b64_json) {
+    return { kind: "failed", at, error: "No image in the result", raw };
+  }
+  const cost = result.usage?.cost;
+  return {
+    kind: "completed",
+    at,
+    result: {
+      media: base64ToBlob(image.b64_json, image.media_type ?? "image/png"),
+      costUsd: typeof cost === "number" ? cost : undefined,
+    },
+    raw,
+  };
+}
+
+/** Prices for every image model, a few at a time; a failure leaves one unpriced. */
+async function imagePrices(
+  key: string,
+  ids: string[],
+  signal?: AbortSignal,
+): Promise<Map<string, Pricing | null>> {
+  const prices = new Map<string, Pricing | null>();
+  for (let i = 0; i < ids.length; i += PRICE_CONCURRENCY) {
+    await Promise.all(
+      ids.slice(i, i + PRICE_CONCURRENCY).map(async (id) => {
+        try {
+          const data = await requestJson<ImageEndpoints>(
+            `${API}/images/models/${id}/endpoints`,
+            { headers: key ? auth(key) : {}, signal },
+          );
+          prices.set(id, pricingFromEndpoints(data));
+        } catch (error) {
+          if (isAbort(error)) throw error;
+        }
+      }),
+    );
+  }
+  return prices;
+}
+
+async function listImageModels(
+  key: string,
+  signal?: AbortSignal,
+): Promise<MediaModel[]> {
+  const { data } = await requestJson<{ data: OpenRouterImageModel[] }>(
+    `${API}/images/models`,
+    { headers: key ? auth(key) : {}, signal },
+  );
+  const models = data.map(normalizeImageModel);
+  const prices = await imagePrices(
+    key,
+    models.map((model) => model.id),
+    signal,
+  );
+  return models.map((model) => ({
+    ...model,
+    pricing: prices.get(model.id) ?? null,
+  }));
+}
+
 /** Video models only: upscalers and editors take a video, not a prompt. */
 export function isGenerationModel(model: OpenRouterModel): boolean {
   return !model.upscale_factor && !/upscale|-edit\b/.test(model.id);
@@ -179,6 +379,9 @@ export const openrouter: MediaProvider = {
   keyUrl: "https://openrouter.ai/settings/keys",
   keyHint: "sk-or-v1-…",
   hosts: PROVIDER_HOSTS.openrouter,
+  kinds: ["video", "image"],
+  // POST /api/v1/images answers with the image itself.
+  answersAtSubmit: ["image"],
   canCancel: false,
 
   async validateKey(key, signal): Promise<KeyInfo> {
@@ -188,7 +391,8 @@ export const openrouter: MediaProvider = {
     return { label: data.label, remainingUsd: data.limit_remaining ?? null };
   },
 
-  async listModels(key, signal): Promise<MediaModel[]> {
+  async listModels(key, kind, signal): Promise<MediaModel[]> {
+    if (kind === "image") return listImageModels(key, signal);
     const { data } = await requestJson<{ data: OpenRouterModel[] }>(
       `${API}/videos/models`,
       { headers: key ? auth(key) : {}, signal },
@@ -197,6 +401,19 @@ export const openrouter: MediaProvider = {
   },
 
   async submit(key, req, signal): Promise<JobRef> {
+    if (req.kind === "image") {
+      const result = await requestJson<OpenRouterImageResult>(
+        `${API}/images`,
+        jsonInit(auth(key), buildImageBody(req), signal),
+      );
+      return {
+        provider: "openrouter",
+        id: `image-${Date.now().toString(36)}`,
+        model: req.model,
+        submittedAt: Date.now(),
+        answer: imageAnswer(result),
+      };
+    }
     const job = await requestJson<OpenRouterJob>(
       `${API}/videos`,
       jsonInit(auth(key), buildBody(req), signal),

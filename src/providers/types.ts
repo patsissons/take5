@@ -139,6 +139,8 @@ export interface MediaProvider {
   keyHint: string;
   /** Every host the adapter may contact (src/providers/hosts.ts). */
   hosts: readonly string[];
+  /** What the provider makes: its video models, image models or both. */
+  kinds: readonly MediaKind[];
   /** Whether cancel() stops the job at the provider (otherwise we only stop watching). */
   canCancel: boolean;
   /**
@@ -147,8 +149,12 @@ export interface MediaProvider {
    */
   answersAtSubmit?: readonly MediaKind[];
   validateKey(key: string, signal?: AbortSignal): Promise<KeyInfo>;
-  listModels(key: string, signal?: AbortSignal): Promise<MediaModel[]>;
-  /** Fills in capabilities and pricing for one model when the list has none. */
+  listModels(
+    key: string,
+    kind: MediaKind,
+    signal?: AbortSignal,
+  ): Promise<MediaModel[]>;
+  /** Fills in capabilities and pricing for one model (of either kind) when the list has none. */
   inspectModel?(
     key: string,
     model: MediaModel,

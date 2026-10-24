@@ -224,7 +224,7 @@ describe("fal", () => {
       }),
       Response.json(prices),
     );
-    const models = await fal.listModels("k");
+    const models = await fal.listModels("k", "video");
     expect(
       calls.slice(0, 3).map((c) => new URL(c.url).searchParams.get("category")),
     ).toEqual(["text-to-video", "text-to-video", "image-to-video"]);

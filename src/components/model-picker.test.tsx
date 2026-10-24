@@ -18,6 +18,7 @@ function fakeProvider(listModels: MediaProvider["listModels"]): MediaProvider {
     keyUrl: "https://x",
     keyHint: "sk",
     hosts: [],
+    kinds: ["video"],
     canCancel: false,
     validateKey: vi.fn(),
     listModels,

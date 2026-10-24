@@ -78,7 +78,7 @@ export function ModelPicker({
       at: state.at,
     }));
     try {
-      const models = await provider.listModels(apiKey);
+      const models = await provider.listModels(apiKey, kind);
       setModelCache(provider.id, models, kind);
       setLoad({ status: "ready", models, at: Date.now() });
     } catch (error) {
