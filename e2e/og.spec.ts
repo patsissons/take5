@@ -26,3 +26,32 @@ test("the page carries Open Graph tags and serves the preview image", async ({
     expect((await request.get(icon)).ok()).toBe(true);
   }
 });
+
+test("the home-screen icon's rounded corners are transparent", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const alpha = await page.evaluate(async () => {
+    const img = new Image();
+    img.src = "/apple-touch-icon.png";
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const context = canvas.getContext("2d")!;
+    context.drawImage(img, 0, 0);
+    const at = (x: number, y: number) =>
+      context.getImageData(x, y, 1, 1).data[3];
+    const last = img.naturalWidth - 1;
+    return {
+      size: [img.naturalWidth, img.naturalHeight],
+      corners: [at(0, 0), at(last, 0), at(0, last), at(last, last)],
+      middle: at(img.naturalWidth / 2, img.naturalHeight / 2),
+    };
+  });
+  expect(alpha).toEqual({
+    size: [180, 180],
+    corners: [0, 0, 0, 0],
+    middle: 255,
+  });
+});
