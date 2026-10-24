@@ -1,0 +1,30 @@
+{
+  "prices": [
+    {
+      "endpoint_id": "fal-ai/nano-banana-2",
+      "unit_price": 0.08,
+      "unit": "image",
+      "currency": "USD"
+    },
+    {
+      "endpoint_id": "fal-ai/nano-banana-2/edit",
+      "unit_price": 0.08,
+      "unit": "image",
+      "currency": "USD"
+    },
+    {
+      "endpoint_id": "fal-ai/flux-2-pro",
+      "unit_price": 0.03,
+      "unit": "megapixels",
+      "currency": "USD"
+    },
+    {
+      "endpoint_id": "fal-ai/flux-pro/kontext",
+      "unit_price": 0.04,
+      "unit": "image",
+      "currency": "USD"
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}

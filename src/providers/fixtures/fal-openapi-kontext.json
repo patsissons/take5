@@ -1,0 +1,490 @@
+{
+  "models": [
+    {
+      "endpoint_id": "fal-ai/flux-pro/kontext",
+      "metadata": {
+        "display_name": "FLUX.1 Kontext [pro]",
+        "category": "image-to-image",
+        "description": "FLUX.1 Kontext [pro] handles both text and reference images as inputs, seamlessly enabling targeted, local edits and complex transformations of entire scenes.",
+        "status": "active",
+        "tags": [],
+        "updated_at": "2026-04-21T17:47:19.221Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://storage.googleapis.com/fal_cdn/fal/Training-2.jpg",
+        "model_url": "https://fal.run/fal-ai/flux-pro/kontext",
+        "license_type": "commercial",
+        "date": "2025-05-28T18:30:52.718Z",
+        "group": {
+          "key": "flux-pro-kontext",
+          "label": "Kontext [pro] -- Editing"
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      },
+      "openapi": {
+        "openapi": "3.0.4",
+        "info": {
+          "title": "Queue OpenAPI for fal-ai/flux-pro/kontext",
+          "version": "1.0.0",
+          "description": "The OpenAPI schema for the fal-ai/flux-pro/kontext queue.",
+          "x-fal-metadata": {
+            "endpointId": "fal-ai/flux-pro/kontext",
+            "category": "image-to-image",
+            "thumbnailUrl": "https://storage.googleapis.com/fal_cdn/fal/Training-2.jpg",
+            "playgroundUrl": "https://fal.ai/models/fal-ai/flux-pro/kontext",
+            "documentationUrl": "https://fal.ai/models/fal-ai/flux-pro/kontext/api",
+            "about": "FLUX.1 Kontext [pro] -- Frontier image editing model.\n\nKontext makes editing images easy! Specify what you want to change and Kontext will follow. It is capable of\nunderstanding the context of the image, making it easier to edit them without having to describe in details what\nyou want to do."
+          }
+        },
+        "components": {
+          "securitySchemes": {
+            "apiKeyAuth": {
+              "type": "apiKey",
+              "in": "header",
+              "name": "Authorization",
+              "description": "Fal Key"
+            }
+          },
+          "schemas": {
+            "QueueStatus": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "type": "string",
+                  "enum": ["IN_QUEUE", "IN_PROGRESS", "COMPLETED"]
+                },
+                "request_id": {
+                  "type": "string",
+                  "description": "The request id."
+                },
+                "response_url": {
+                  "type": "string",
+                  "description": "The response url."
+                },
+                "status_url": {
+                  "type": "string",
+                  "description": "The status url."
+                },
+                "cancel_url": {
+                  "type": "string",
+                  "description": "The cancel url."
+                },
+                "logs": {
+                  "type": "object",
+                  "description": "The logs.",
+                  "additionalProperties": true
+                },
+                "metrics": {
+                  "type": "object",
+                  "description": "The metrics.",
+                  "additionalProperties": true
+                },
+                "queue_position": {
+                  "type": "integer",
+                  "description": "The queue position."
+                }
+              },
+              "required": ["status", "request_id"]
+            },
+            "FluxProKontextInput": {
+              "required": ["prompt", "image_url"],
+              "type": "object",
+              "x-fal-order-properties": [
+                "prompt",
+                "seed",
+                "guidance_scale",
+                "sync_mode",
+                "num_images",
+                "output_format",
+                "safety_tolerance",
+                "enhance_prompt",
+                "aspect_ratio",
+                "image_url"
+              ],
+              "title": "FluxKontextInput",
+              "properties": {
+                "image_url": {
+                  "minLength": 1,
+                  "examples": [
+                    "https://v3.fal.media/files/rabbit/rmgBxhwGYb2d3pl3x9sKf_output.png"
+                  ],
+                  "type": "string",
+                  "title": "Image URL",
+                  "description": "Image prompt for the omni model."
+                },
+                "safety_tolerance": {
+                  "title": "Safety Tolerance",
+                  "type": "string",
+                  "enum": ["1", "2", "3", "4", "5", "6"],
+                  "default": "2",
+                  "description": "The safety tolerance level for the generated image. 1 being the most strict and 5 being the most permissive."
+                },
+                "seed": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Seed",
+                  "description": "\n            The same seed and the same prompt given to the same version of the model\n            will output the same image every time.\n        "
+                },
+                "num_images": {
+                  "title": "Num Images",
+                  "type": "integer",
+                  "default": 1,
+                  "minimum": 1,
+                  "maximum": 4,
+                  "description": "The number of images to generate."
+                },
+                "prompt": {
+                  "examples": ["Put a donut next to the flour."],
+                  "type": "string",
+                  "title": "Prompt",
+                  "description": "The prompt to generate an image from."
+                },
+                "sync_mode": {
+                  "title": "Sync Mode",
+                  "type": "boolean",
+                  "default": false,
+                  "description": "If `True`, the media will be returned as a data URI and the output data won't be available in the request history."
+                },
+                "enhance_prompt": {
+                  "title": "Enhance Prompt",
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether to enhance the prompt for better results."
+                },
+                "guidance_scale": {
+                  "title": "Guidance scale (CFG)",
+                  "type": "number",
+                  "default": 3.5,
+                  "minimum": 1,
+                  "maximum": 20,
+                  "description": "\n            The CFG (Classifier Free Guidance) scale is a measure of how close you want\n            the model to stick to your prompt when looking for a related image to show you.\n        "
+                },
+                "aspect_ratio": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "21:9",
+                        "16:9",
+                        "4:3",
+                        "3:2",
+                        "1:1",
+                        "2:3",
+                        "3:4",
+                        "9:16",
+                        "9:21"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Aspect Ratio",
+                  "description": "The aspect ratio of the generated image."
+                },
+                "output_format": {
+                  "title": "Output Format",
+                  "type": "string",
+                  "enum": ["jpeg", "png"],
+                  "default": "jpeg",
+                  "description": "The format of the generated image."
+                }
+              }
+            },
+            "FluxProKontextOutput": {
+              "required": [
+                "images",
+                "timings",
+                "seed",
+                "has_nsfw_concepts",
+                "prompt"
+              ],
+              "type": "object",
+              "x-fal-order-properties": [
+                "images",
+                "timings",
+                "seed",
+                "has_nsfw_concepts",
+                "prompt"
+              ],
+              "title": "FluxKontextOutput",
+              "properties": {
+                "prompt": {
+                  "title": "Prompt",
+                  "type": "string",
+                  "description": "The prompt used for generating the image."
+                },
+                "seed": {
+                  "title": "Seed",
+                  "type": "integer",
+                  "description": "\n            Seed of the generated Image. It will be the same value of the one passed in the\n            input or the randomly generated that was used in case none was passed.\n        "
+                },
+                "has_nsfw_concepts": {
+                  "title": "Has Nsfw Concepts",
+                  "type": "array",
+                  "items": {
+                    "type": "boolean"
+                  },
+                  "description": "Whether the generated images contain NSFW concepts."
+                },
+                "timings": {
+                  "title": "Timings",
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  }
+                },
+                "images": {
+                  "examples": [
+                    [
+                      {
+                        "height": 1024,
+                        "width": 1024,
+                        "url": "https://fal.media/files/tiger/7dSJbIU_Ni-0Zp9eaLsvR_fe56916811d84ac69c6ffc0d32dca151.jpg"
+                      }
+                    ]
+                  ],
+                  "type": "array",
+                  "title": "Images",
+                  "items": {
+                    "$ref": "#/components/schemas/fal__toolkit__image__image__Image"
+                  },
+                  "description": "The generated image files info."
+                }
+              }
+            },
+            "fal__toolkit__image__image__Image": {
+              "required": ["url"],
+              "x-fal-order-properties": [
+                "url",
+                "content_type",
+                "file_name",
+                "file_size",
+                "width",
+                "height"
+              ],
+              "title": "Image",
+              "properties": {
+                "file_name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "examples": ["z9RV14K95DvU.png"],
+                  "title": "File Name",
+                  "description": "The name of the file. It will be auto-generated if not provided."
+                },
+                "width": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "examples": [1024],
+                  "title": "Width",
+                  "description": "The width of the image in pixels."
+                },
+                "height": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "examples": [1024],
+                  "title": "Height",
+                  "description": "The height of the image in pixels."
+                },
+                "content_type": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "examples": ["image/png"],
+                  "title": "Content Type",
+                  "description": "The mime type of the file."
+                },
+                "file_size": {
+                  "anyOf": [
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "examples": [4404019],
+                  "title": "File Size",
+                  "description": "The size of the file in bytes."
+                },
+                "url": {
+                  "title": "Url",
+                  "type": "string",
+                  "description": "The URL where the file can be downloaded from."
+                }
+              },
+              "type": "object",
+              "description": "Represents an image file."
+            }
+          }
+        },
+        "paths": {
+          "/fal-ai/flux-pro/kontext/requests/{request_id}/status": {
+            "get": {
+              "parameters": [
+                {
+                  "name": "request_id",
+                  "in": "path",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "description": "Request ID"
+                  }
+                },
+                {
+                  "name": "logs",
+                  "in": "query",
+                  "required": false,
+                  "schema": {
+                    "type": "number",
+                    "description": "Whether to include logs (`1`) in the response or not (`0`)."
+                  }
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "The request status.",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/QueueStatus"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/fal-ai/flux-pro/kontext/requests/{request_id}/cancel": {
+            "put": {
+              "parameters": [
+                {
+                  "name": "request_id",
+                  "in": "path",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "description": "Request ID"
+                  }
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "The request was cancelled.",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "type": "object",
+                        "properties": {
+                          "success": {
+                            "type": "boolean",
+                            "description": "Whether the request was cancelled successfully."
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/fal-ai/flux-pro/kontext": {
+            "post": {
+              "requestBody": {
+                "required": true,
+                "content": {
+                  "application/json": {
+                    "schema": {
+                      "$ref": "#/components/schemas/FluxProKontextInput"
+                    }
+                  }
+                }
+              },
+              "responses": {
+                "200": {
+                  "description": "The request status.",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/QueueStatus"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "/fal-ai/flux-pro/kontext/requests/{request_id}": {
+            "get": {
+              "parameters": [
+                {
+                  "name": "request_id",
+                  "in": "path",
+                  "required": true,
+                  "schema": {
+                    "type": "string",
+                    "description": "Request ID"
+                  }
+                }
+              ],
+              "responses": {
+                "200": {
+                  "description": "Result of the request.",
+                  "content": {
+                    "application/json": {
+                      "schema": {
+                        "$ref": "#/components/schemas/FluxProKontextOutput"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "servers": [
+          {
+            "url": "https://queue.fal.run"
+          }
+        ],
+        "security": [
+          {
+            "apiKeyAuth": []
+          }
+        ]
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}

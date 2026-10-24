@@ -13,6 +13,7 @@ import type {
   JobEvent,
   JobRef,
   KeyInfo,
+  MediaKind,
   Pricing,
   MediaModel,
   MediaProvider,
@@ -88,16 +89,35 @@ const LAST_FRAME_FIELDS = [
 ];
 const REFERENCE_FIELDS = ["reference_image_urls", "image_urls"];
 
+/** The model list's categories for each kind. */
+const CATEGORIES: Record<MediaKind, string[]> = {
+  video: ["text-to-video", "image-to-video"],
+  image: ["text-to-image", "image-to-image"],
+};
+
+/**
+ * image-to-image also lists tools that take no prompt (upscalers,
+ * background removal, segmentation…); they are not generators.
+ */
+const IMAGE_TOOLS =
+  /upscal|background|rembg|birefnet|segment|sam-\d|vectori[sz]e|extract-frame|depth|preprocessor|eraser|expand|aura-sr|esrgan|clarity/i;
+
+export function kindOf(model: FalModel): MediaKind {
+  return /-to-image$/.test(model.metadata.category) ? "image" : "video";
+}
+
 export function normalizeModel(model: FalModel): MediaModel {
-  const imageToVideo = model.metadata.category === "image-to-video";
+  const kind = kindOf(model);
+  const category = model.metadata.category;
   return {
     provider: "fal",
-    kind: "video",
+    kind,
     id: model.endpoint_id,
     name: model.metadata.display_name,
     description: model.metadata.description,
-    frameImages: imageToVideo ? ["first_frame"] : [],
-    referenceImages: false,
+    frameImages: category === "image-to-video" ? ["first_frame"] : [],
+    // Until the schema says which field, an editor is assumed to take one.
+    referenceImages: category === "image-to-image",
     audio: null,
     durations: null,
     resolutions: null,
@@ -111,7 +131,11 @@ export function normalizeModel(model: FalModel): MediaModel {
 export function isUsable(model: FalModel): boolean {
   return (
     model.metadata.status === "active" &&
-    (model.metadata.kind ?? "inference") === "inference"
+    (model.metadata.kind ?? "inference") === "inference" &&
+    !(
+      kindOf(model) === "image" &&
+      IMAGE_TOOLS.test(`${model.endpoint_id} ${model.metadata.display_name}`)
+    )
   );
 }
 
@@ -140,6 +164,7 @@ function enumOf(schema: JsonSchema | undefined): string[] | null {
 
 /** Applies what the endpoint's OpenAPI input schema says it accepts. */
 export function applySchema(model: MediaModel, input: JsonSchema): MediaModel {
+  if (model.kind === "image") return applyImageSchema(model, input);
   const props = input.properties ?? {};
   const keys = Object.keys(props);
   const extra: Record<string, string> = { ...model.extra };
@@ -179,12 +204,53 @@ export function applySchema(model: MediaModel, input: JsonSchema): MediaModel {
   };
 }
 
+/**
+ * A still model's inputs: a list of reference images (`image_urls`) or a
+ * single one (`image_url`, required by editors like Kontext), and its
+ * resolutions, aspect ratios or named sizes (`image_size`).
+ */
+function applyImageSchema(model: MediaModel, input: JsonSchema): MediaModel {
+  const props = input.properties ?? {};
+  const keys = Object.keys(props);
+  const required = input.required ?? [];
+  const extra: Record<string, string> = { ...model.extra };
+  const list = REFERENCE_FIELDS.find((f) => keys.includes(f));
+  const single = keys.includes("image_url") ? "image_url" : undefined;
+  const reference = list ?? single;
+  delete extra.referenceField;
+  delete extra.referenceSingle;
+  delete extra.sizeField;
+  if (reference) extra.referenceField = reference;
+  if (!list && single) extra.referenceSingle = "true";
+  const sizes = enumOf(props.image_size);
+  if (sizes) extra.sizeField = "image_size";
+  return {
+    ...model,
+    frameImages: [],
+    referenceImages: !!reference,
+    maxImages: reference ? (list ? undefined : 1) : undefined,
+    imageRequired: !!reference && required.includes(reference),
+    resolutions: enumOf(props.resolution),
+    aspectRatios: enumOf(props.aspect_ratio),
+    sizes,
+    extra,
+  };
+}
+
 export function pricingFromPrices(
   prices: FalPrice[] | undefined,
+  kind: MediaKind = "video",
 ): Pricing | null {
   const price = prices?.[0];
   if (!price) return null;
-  if (/second/.test(price.unit)) {
+  if (kind === "image") {
+    if (/megapixel/.test(price.unit)) {
+      return { kind: "per-megapixel", usd: price.unit_price };
+    }
+    if (/image|request|generation/.test(price.unit)) {
+      return { kind: "per-image", rates: [{ usd: price.unit_price }] };
+    }
+  } else if (/second/.test(price.unit)) {
     return { kind: "per-second", rates: [{ usdPerSecond: price.unit_price }] };
   }
   if (/video|request|generation/.test(price.unit)) {
@@ -245,11 +311,14 @@ export function buildBody(
   if (req.aspectRatio) body.aspect_ratio = req.aspectRatio;
   if (req.audio !== undefined && extra.audioField)
     body[extra.audioField] = req.audio;
+  if (req.size && extra.sizeField) body[extra.sizeField] = req.size;
   for (const image of req.images) {
     if (image.role === "first_frame") {
       body[extra.firstFrameField ?? "image_url"] = image.dataUrl;
     } else if (image.role === "last_frame") {
       body[extra.lastFrameField ?? "end_image_url"] = image.dataUrl;
+    } else if (extra.referenceSingle) {
+      body[extra.referenceField!] = image.dataUrl;
     } else {
       const field = extra.referenceField ?? "reference_image_urls";
       body[field] = [
@@ -280,7 +349,8 @@ export const fal: MediaProvider = {
   keyUrl: "https://fal.ai/dashboard/keys",
   keyHint: "key_id:key_secret",
   hosts: PROVIDER_HOSTS.fal,
-  kinds: ["video"],
+  // Images go through the same queue as videos, so they resume too.
+  kinds: ["video", "image"],
   canCancel: true,
 
   async validateKey(key, signal): Promise<KeyInfo> {
@@ -293,9 +363,8 @@ export const fal: MediaProvider = {
   },
 
   async listModels(key, kind, signal): Promise<MediaModel[]> {
-    if (kind !== "video") return [];
     const models: FalModel[] = [];
-    for (const category of ["text-to-video", "image-to-video"]) {
+    for (const category of CATEGORIES[kind]) {
       let cursor: string | null = null;
       for (let page = 0; page < MAX_PAGES; page++) {
         const url = new URL(`${API}/models`);
@@ -328,7 +397,7 @@ export const fal: MediaProvider = {
     );
     return usable.map((model) => ({
       ...model,
-      pricing: pricingFromPrices(prices.get(model.id)),
+      pricing: pricingFromPrices(prices.get(model.id), model.kind),
     }));
   },
 
@@ -348,7 +417,10 @@ export const fal: MediaProvider = {
         .catch(() => undefined),
     ]);
     const detailed = schema ? applySchema(model, schema) : model;
-    return { ...detailed, pricing: pricingFromPrices(prices) ?? model.pricing };
+    return {
+      ...detailed,
+      pricing: pricingFromPrices(prices, model.kind) ?? model.pricing,
+    };
   },
 
   async submit(key, req, signal): Promise<JobRef> {
@@ -427,13 +499,27 @@ export const fal: MediaProvider = {
     }
     const result = await requestJson<{
       video?: { url?: string };
+      images?: Array<{ url?: string }>;
       error?: string;
     }>(job.extra!.responseUrl!, { headers: auth(key), signal });
-    if (!result.video?.url) {
+    const url = result.video?.url ?? result.images?.[0]?.url;
+    if (!url) {
       yield {
         kind: "failed",
         at: Date.now(),
-        error: result.error ?? "No video in the result",
+        error: result.error ?? "No video or image in the result",
+        raw: result,
+      };
+      return;
+    }
+    // A few older endpoints keep results off fal's media CDN, on a host the
+    // Content-Security-Policy blocks: say so instead of failing to fetch.
+    const host = new URL(url).host;
+    if (!/(^|\.)fal\.media$/.test(host)) {
+      yield {
+        kind: "failed",
+        at: Date.now(),
+        error: `fal put the result on ${host}, which take5 is not allowed to contact`,
         raw: result,
       };
       return;
@@ -441,13 +527,13 @@ export const fal: MediaProvider = {
     yield {
       kind: "completed",
       at: Date.now(),
-      result: { mediaUrl: result.video.url },
+      result: { mediaUrl: url },
       raw: result,
     };
   },
 
   async fetchMedia(_key, _job, result, signal): Promise<Blob> {
-    if (!result.mediaUrl) throw new ProviderError("No video URL to download");
+    if (!result.mediaUrl) throw new ProviderError("No URL to download");
     const response = await request(result.mediaUrl, { signal });
     return response.blob();
   },
