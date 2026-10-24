@@ -66,7 +66,7 @@ test("gemini: Veo is listed, generated through the operation and downloaded with
   await seedProvider(page, "gemini", "veo-3.1-lite-generate-preview");
   await page.goto("/");
   await expect(page.getByTestId("studio-bar")).toContainText(
-    "Gemini (Veo) · Veo 3.1 Lite",
+    "Gemini · Veo 3.1 Lite",
   );
   await expect(page.getByLabel("Duration")).toHaveValue("4");
   await expect(page.getByTestId("estimate")).toHaveText("About $0.20");

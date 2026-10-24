@@ -1,8 +1,10 @@
 import { PROVIDER_HOSTS } from "./hosts";
 import {
+  base64ToBlob,
   jsonInit,
   parseDataUrl,
   ProviderError,
+  redactBase64,
   request,
   requestJson,
   sleep,
@@ -15,6 +17,7 @@ import type {
   MediaModel,
   MediaProvider,
   MediaRequest,
+  TerminalEvent,
 } from "./types";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
@@ -40,6 +43,21 @@ export interface GeminiOperation {
       raiMediaFilteredReasons?: string[];
     };
   };
+}
+
+/** POST v1beta/models/{id}:generateContent, for an image model. */
+export interface GeminiContentResponse {
+  candidates?: Array<{
+    finishReason?: string;
+    content?: {
+      parts?: Array<{
+        text?: string;
+        thought?: boolean;
+        inlineData?: { mimeType?: string; data?: string };
+      }>;
+    };
+  }>;
+  promptFeedback?: { blockReason?: string };
 }
 
 function auth(key: string): Record<string, string> {
@@ -89,6 +107,135 @@ export function normalizeModel(model: GeminiModel): MediaModel {
   };
 }
 
+/** Image models answer generateContent; Imagen (predict) has been shut down. */
+export function isImageModel(model: GeminiModel): boolean {
+  return (
+    /image|nano-banana/i.test(model.name) &&
+    !/imagen/i.test(model.name) &&
+    (model.supportedGenerationMethods ?? []).includes("generateContent")
+  );
+}
+
+/** USD per output image by size, from the Gemini pricing page. */
+export function imagePricingFor(id: string): Pricing | null {
+  const rate = (usd: Record<string, number>): Pricing => ({
+    kind: "per-image",
+    rates: Object.entries(usd).map(([resolution, cost]) => ({
+      resolution,
+      usd: cost,
+    })),
+  });
+  if (/nano-banana-2\.1/.test(id))
+    return rate({ "1K": 0.0336, "2K": 0.0504, "4K": 0.113 });
+  if (/3\.1-flash-lite-image/.test(id)) return rate({ "1K": 0.0336 });
+  if (/3\.1-flash-image/.test(id))
+    return rate({ "512": 0.045, "1K": 0.067, "2K": 0.101, "4K": 0.151 });
+  if (/3-pro-image/.test(id))
+    return rate({ "1K": 0.134, "2K": 0.134, "4K": 0.24 });
+  if (/2\.5-flash-image/.test(id))
+    return { kind: "per-image", rates: [{ usd: 0.039 }] };
+  return null;
+}
+
+/** imageSize values (uppercase K; 512 only on 3.1 Flash Image). */
+function imageSizes(id: string): string[] | null {
+  if (/lite|2\.5-flash-image/.test(id)) return null;
+  if (/3\.1-flash-image/.test(id)) return ["512", "1K", "2K", "4K"];
+  return ["1K", "2K", "4K"];
+}
+
+export function normalizeImageModel(model: GeminiModel): MediaModel {
+  const id = model.name.replace(/^models\//, "");
+  return {
+    provider: "gemini",
+    kind: "image",
+    id,
+    name: model.displayName ?? id,
+    description: model.description,
+    frameImages: [],
+    referenceImages: true,
+    maxImages: 14,
+    audio: null,
+    durations: null,
+    resolutions: imageSizes(id),
+    aspectRatios: [
+      "1:1",
+      "2:3",
+      "3:2",
+      "3:4",
+      "4:3",
+      "4:5",
+      "5:4",
+      "9:16",
+      "16:9",
+      "21:9",
+    ],
+    sizes: null,
+    pricing: imagePricingFor(id),
+  };
+}
+
+export function buildImageBody(req: MediaRequest): Record<string, unknown> {
+  const imageConfig: Record<string, string> = {};
+  if (req.aspectRatio) imageConfig.aspectRatio = req.aspectRatio;
+  if (req.resolution) imageConfig.imageSize = req.resolution;
+  return {
+    contents: [
+      {
+        role: "user",
+        parts: [
+          ...req.images.map((image) => inline(image.dataUrl)),
+          { text: req.prompt },
+        ],
+      },
+    ],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+      ...(Object.keys(imageConfig).length ? { imageConfig } : {}),
+    },
+  };
+}
+
+/**
+ * The image (the last one that is not a thought), or the provider's reason
+ * for not making one: a finish reason like IMAGE_SAFETY, a blocked prompt,
+ * or whatever the model said instead.
+ */
+export function imageAnswer(response: GeminiContentResponse): TerminalEvent {
+  const at = Date.now();
+  const raw = redactBase64(response);
+  const candidate = response.candidates?.[0];
+  const parts = candidate?.content?.parts ?? [];
+  const image = parts
+    .filter((part) => part.inlineData?.data && !part.thought)
+    .at(-1)?.inlineData;
+  if (image?.data) {
+    return {
+      kind: "completed",
+      at,
+      result: {
+        media: base64ToBlob(image.data, image.mimeType ?? "image/png"),
+      },
+      raw,
+    };
+  }
+  const said = parts
+    .filter((part) => part.text && !part.thought)
+    .map((part) => part.text!.trim())
+    .join(" ");
+  const reason =
+    response.promptFeedback?.blockReason ??
+    (candidate?.finishReason && candidate.finishReason !== "STOP"
+      ? candidate.finishReason
+      : undefined);
+  return {
+    kind: "failed",
+    at,
+    error: reason ?? (said || "No image was returned"),
+    raw,
+  };
+}
+
 function inline(dataUrl: string) {
   const { mimeType, base64 } = parseDataUrl(dataUrl);
   return { inlineData: { mimeType, data: base64 } };
@@ -114,11 +261,13 @@ export function buildBody(req: MediaRequest): Record<string, unknown> {
 
 export const gemini: MediaProvider = {
   id: "gemini",
-  label: "Gemini (Veo)",
+  label: "Gemini",
   keyUrl: "https://aistudio.google.com/app/apikey",
   keyHint: "AIza…",
   hosts: PROVIDER_HOSTS.gemini,
-  kinds: ["video"],
+  kinds: ["video", "image"],
+  // generateContent answers with the image inline.
+  answersAtSubmit: ["image"],
   canCancel: false,
 
   async validateKey(key, signal): Promise<KeyInfo> {
@@ -130,7 +279,6 @@ export const gemini: MediaProvider = {
   },
 
   async listModels(key, kind, signal): Promise<MediaModel[]> {
-    if (kind !== "video") return [];
     const models: GeminiModel[] = [];
     let pageToken: string | undefined;
     do {
@@ -142,10 +290,25 @@ export const gemini: MediaProvider = {
       models.push(...(data.models ?? []));
       pageToken = data.nextPageToken;
     } while (pageToken);
-    return models.filter(isVideoModel).map(normalizeModel);
+    return kind === "image"
+      ? models.filter(isImageModel).map(normalizeImageModel)
+      : models.filter(isVideoModel).map(normalizeModel);
   },
 
   async submit(key, req, signal): Promise<JobRef> {
+    if (req.kind === "image") {
+      const response = await requestJson<GeminiContentResponse>(
+        `${API}/models/${encodeURIComponent(req.model)}:generateContent`,
+        jsonInit(auth(key), buildImageBody(req), signal),
+      );
+      return {
+        provider: "gemini",
+        id: `image-${Date.now().toString(36)}`,
+        model: req.model,
+        submittedAt: Date.now(),
+        answer: imageAnswer(response),
+      };
+    }
     const operation = await requestJson<{ name: string }>(
       `${API}/models/${encodeURIComponent(req.model)}:predictLongRunning`,
       jsonInit(auth(key), buildBody(req), signal),

@@ -1,8 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import blocked from "./fixtures/gemini-image-blocked.json";
+import imageModels from "./fixtures/gemini-image-models.json";
+import imageResponse from "./fixtures/gemini-image-response.json";
 import {
   buildBody,
+  buildImageBody,
   gemini,
+  imageAnswer,
+  imagePricingFor,
+  isImageModel,
   isVideoModel,
+  normalizeImageModel,
   normalizeModel,
   pricingFor,
 } from "./gemini";
@@ -226,5 +234,130 @@ describe("gemini", () => {
       mediaUrl: "https://generativelanguage.googleapis.com/x",
     });
     expect(calls[0]!.init?.headers).toEqual({ "x-goog-api-key": "AIza" });
+  });
+});
+
+describe("gemini images", () => {
+  it("lists generateContent image models, not Imagen or Veo", async () => {
+    mockFetch(Response.json(imageModels));
+    const models = await gemini.listModels("AIza", "image");
+    expect(models.map((m) => m.id)).toEqual([
+      "gemini-nano-banana-2.1",
+      "gemini-3.1-flash-image",
+      "gemini-3.1-flash-lite-image",
+      "gemini-3-pro-image",
+    ]);
+    expect(
+      isImageModel({
+        name: "models/imagen-4.0-generate-001",
+        supportedGenerationMethods: ["generateContent"],
+      }),
+    ).toBe(false);
+  });
+
+  it("knows each model's sizes and per-image prices", () => {
+    const flash = normalizeImageModel({
+      name: "models/gemini-3.1-flash-image",
+      displayName: "Nano Banana 2",
+    });
+    expect(flash).toMatchObject({
+      kind: "image",
+      name: "Nano Banana 2",
+      referenceImages: true,
+      maxImages: 14,
+      resolutions: ["512", "1K", "2K", "4K"],
+    });
+    expect(flash.pricing).toEqual({
+      kind: "per-image",
+      rates: [
+        { resolution: "512", usd: 0.045 },
+        { resolution: "1K", usd: 0.067 },
+        { resolution: "2K", usd: 0.101 },
+        { resolution: "4K", usd: 0.151 },
+      ],
+    });
+    expect(
+      normalizeImageModel({ name: "models/gemini-3.1-flash-lite-image" })
+        .resolutions,
+    ).toBeNull();
+    expect(imagePricingFor("gemini-3-pro-image-preview")).toMatchObject({
+      rates: expect.arrayContaining([{ resolution: "4K", usd: 0.24 }]),
+    });
+    expect(imagePricingFor("gemini-9-image")).toBeNull();
+  });
+
+  it("asks for an image only, with references before the prompt", () => {
+    expect(
+      buildImageBody({
+        kind: "image",
+        model: "m",
+        prompt: "a fox",
+        aspectRatio: "1:1",
+        resolution: "2K",
+        images: [{ role: "reference", dataUrl: "data:image/png;base64,AA" }],
+      }),
+    ).toEqual({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType: "image/png", data: "AA" } },
+            { text: "a fox" },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseModalities: ["IMAGE"],
+        imageConfig: { aspectRatio: "1:1", imageSize: "2K" },
+      },
+    });
+    expect(
+      buildImageBody({ kind: "image", model: "m", prompt: "p", images: [] })
+        .generationConfig,
+    ).toEqual({ responseModalities: ["IMAGE"] });
+  });
+
+  it("takes the final image, skipping thoughts", async () => {
+    const answer = imageAnswer(imageResponse);
+    expect(answer.kind).toBe("completed");
+    if (answer.kind !== "completed") return;
+    expect(answer.result.media?.type).toBe("image/png");
+    expect(answer.result.media?.size).toBe(70);
+    expect(answer.result.costUsd).toBeUndefined();
+  });
+
+  it("explains a refusal", () => {
+    expect(imageAnswer(blocked)).toMatchObject({
+      kind: "failed",
+      error: "IMAGE_SAFETY",
+    });
+    expect(
+      imageAnswer({ promptFeedback: { blockReason: "PROHIBITED_CONTENT" } }),
+    ).toMatchObject({ error: "PROHIBITED_CONTENT" });
+    expect(
+      imageAnswer({
+        candidates: [
+          {
+            finishReason: "STOP",
+            content: { parts: [{ text: "I can only describe that." }] },
+          },
+        ],
+      }),
+    ).toMatchObject({ error: "I can only describe that." });
+  });
+
+  it("answers an image request at submit", async () => {
+    const calls = mockFetch(Response.json(imageResponse));
+    const ref = await gemini.submit("AIza", {
+      kind: "image",
+      model: "gemini-3.1-flash-image",
+      prompt: "a fox",
+      images: [],
+    });
+    expect(calls[0]!.url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent",
+    );
+    expect(calls[0]!.init?.headers).toMatchObject({ "x-goog-api-key": "AIza" });
+    expect(ref.answer?.kind).toBe("completed");
   });
 });
