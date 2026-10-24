@@ -109,12 +109,14 @@ Commit in small, modular units (one logical change per commit).
   (`handoff-dialog.tsx`) seals the provider, keys, mode and model choices
   (`src/lib/handoff.ts`: AES-GCM, key from PBKDF2 over an eight-character
   Crockford code shown beside the QR) into a `#handoff=` link; the phone
-  types the code to open it (`handoff-receive.tsx`). `use-handoff-link.ts`
+  types the code into one box per character (`code-input.tsx`) to open
+  it (`handoff-receive.tsx`). `use-handoff-link.ts`
   strips the fragment on arrival, and a link expires after ten minutes.
   Model caches stay behind to keep the QR scannable, so `App` lands on the
   model step until the picker has fetched the list. History travels only
   as a `.take5` file the visitor sends themselves (`src/lib/backup.ts`):
-  finished runs and media, never a key or a job ref. Never add a relay,
+  the finished runs ticked in `history-picker.tsx` (all by default) and
+  their media, never a key or a job ref. Never add a relay,
   WebRTC or camera access for this; the QR is drawn by `uqr` (a pure
   encoder) in dark-on-light `--qr` tokens.
 - **Storage degrades, never breaks.** `src/lib/settings.ts` (local/session
