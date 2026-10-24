@@ -11,19 +11,19 @@ import { COST_STEPS, costAt, costBounds, inCostRange } from "@/lib/model-cost";
 import { ARENA, arenaElo, rankModels } from "@/lib/model-ranking";
 import { getModelCache, setModelCache } from "@/lib/settings";
 import { customModel } from "@/lib/use-settings";
-import type { VideoModel, VideoProvider } from "@/providers/types";
+import type { MediaModel, MediaProvider } from "@/providers/types";
 
 interface Props {
-  provider: VideoProvider;
+  provider: MediaProvider;
   apiKey: string;
   selected?: string | null;
-  onPick: (model: VideoModel) => void;
+  onPick: (model: MediaModel) => void;
 }
 
 type Load =
-  | { status: "loading"; models: VideoModel[]; at?: number }
-  | { status: "ready"; models: VideoModel[]; at: number }
-  | { status: "error"; models: VideoModel[]; at?: number; error: string };
+  | { status: "loading"; models: MediaModel[]; at?: number }
+  | { status: "ready"; models: MediaModel[]; at: number }
+  | { status: "error"; models: MediaModel[]; at?: number; error: string };
 
 /** The provider's video models, cached locally, searchable, or a slug typed by hand. */
 export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
@@ -42,7 +42,7 @@ export function ModelPicker({ provider, apiKey, selected, onPick }: Props) {
    * Some providers (fal) describe a model's inputs and price only per
    * model: fetch that on pick, and keep it in the cache for next time.
    */
-  const pick = async (model: VideoModel) => {
+  const pick = async (model: MediaModel) => {
     if (!provider.inspectModel || inspecting) return onPick(model);
     setInspecting(model.id);
     setInspectError(null);

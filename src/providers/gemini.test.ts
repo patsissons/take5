@@ -187,7 +187,7 @@ describe("gemini", () => {
       expect.objectContaining({
         kind: "completed",
         result: {
-          videoUrl:
+          mediaUrl:
             "https://generativelanguage.googleapis.com/v1beta/files/f:download?alt=media",
         },
       }),
@@ -222,8 +222,8 @@ describe("gemini", () => {
 
   it("downloads with the key header", async () => {
     const calls = mockFetch(new Response("mp4"));
-    await gemini.fetchVideo("AIza", job, {
-      videoUrl: "https://generativelanguage.googleapis.com/x",
+    await gemini.fetchMedia("AIza", job, {
+      mediaUrl: "https://generativelanguage.googleapis.com/x",
     });
     expect(calls[0]!.init?.headers).toEqual({ "x-goog-api-key": "AIza" });
   });

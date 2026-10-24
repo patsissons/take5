@@ -6,16 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { useSettings } from "@/lib/use-settings";
-import type { KeyInfo, VideoModel, VideoProvider } from "@/providers/types";
+import type { KeyInfo, MediaModel, MediaProvider } from "@/providers/types";
 
 export type SetupStep = "provider" | "key" | "model";
 
 interface Props {
-  providers: readonly VideoProvider[];
+  providers: readonly MediaProvider[];
   settings: ReturnType<typeof useSettings>;
   step: SetupStep;
   onStep: (step: SetupStep) => void;
-  onDone: (model: VideoModel) => void;
+  onDone: (model: MediaModel) => void;
   /** Back to the studio unchanged; only offered once setup was complete. */
   onCancel?: () => void;
 }
@@ -164,7 +164,7 @@ function KeyStep({
   onBack,
   onDone,
 }: {
-  provider: VideoProvider;
+  provider: MediaProvider;
   settings: Props["settings"];
   onBack: () => void;
   onDone: () => void;

@@ -1,4 +1,4 @@
-import type { JobRef, VideoRequest } from "@/providers/types";
+import type { JobRef, MediaRequest } from "@/providers/types";
 import type { ProviderId } from "@/providers/hosts";
 
 /**
@@ -15,7 +15,7 @@ export interface Run {
   id: string;
   provider: ProviderId;
   modelName: string;
-  request: VideoRequest;
+  request: MediaRequest;
   status: RunStatus;
   createdAt: number;
   finishedAt?: number;
@@ -135,7 +135,7 @@ export async function deleteRun(id: string): Promise<void> {
   );
 }
 
-export async function putVideo(id: string, blob: Blob): Promise<void> {
+export async function putMedia(id: string, blob: Blob): Promise<void> {
   const stored: StoredVideo = {
     type: blob.type,
     bytes: await blob.arrayBuffer(),
@@ -148,7 +148,7 @@ export async function putVideo(id: string, blob: Blob): Promise<void> {
   );
 }
 
-export async function getVideo(id: string): Promise<Blob | undefined> {
+export async function getMedia(id: string): Promise<Blob | undefined> {
   const stored = await withStore<StoredVideo | undefined>(
     "videos",
     "readonly",
@@ -194,7 +194,7 @@ export async function storageEstimate(): Promise<{
 }
 
 /** The download name for a run's video. */
-export function videoFileName(run: Run): string {
+export function mediaFileName(run: Run): string {
   const ext = run.videoType?.includes("webm") ? "webm" : "mp4";
   return `take5-${run.id}.${ext}`;
 }

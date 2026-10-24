@@ -1,4 +1,4 @@
-import type { VideoModel } from "@/providers/types";
+import type { MediaModel } from "@/providers/types";
 
 /**
  * A bundled snapshot of a public text-to-video arena: the app may contact
@@ -169,7 +169,7 @@ function sameSet(a: Set<string>, b: string[]): boolean {
 
 /** The arena entry for a model, matched on its id and display name. */
 export function arenaEntry(
-  model: Pick<VideoModel, "id" | "name">,
+  model: Pick<MediaModel, "id" | "name">,
 ): Pick<Entry, "name" | "elo"> | undefined {
   const text = `${normalise(model.id)}-${normalise(model.name)}`;
   for (const entry of ENTRIES) {
@@ -184,13 +184,13 @@ export function arenaEntry(
 }
 
 export function arenaElo(
-  model: Pick<VideoModel, "id" | "name">,
+  model: Pick<MediaModel, "id" | "name">,
 ): number | undefined {
   return arenaEntry(model)?.elo;
 }
 
 /** Highest Elo first; unranked models after, in the order they came. */
-export function rankModels<T extends Pick<VideoModel, "id" | "name">>(
+export function rankModels<T extends Pick<MediaModel, "id" | "name">>(
   models: T[],
 ): T[] {
   return models

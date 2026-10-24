@@ -3,14 +3,14 @@ import { IDBFactory } from "fake-indexeddb";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ProviderError } from "@/providers/http";
-import type { JobEvent, VideoProvider } from "@/providers/types";
+import type { JobEvent, MediaProvider } from "@/providers/types";
 import { getRun, resetDb } from "./history";
 import { customModel } from "./use-settings";
 import { useRun } from "./use-run";
 
 vi.mock("@/lib/thumbnail", () => ({ captureThumbnail: async () => undefined }));
 
-function provider(watch: VideoProvider["watch"]): VideoProvider {
+function provider(watch: MediaProvider["watch"]): MediaProvider {
   return {
     id: "openrouter",
     label: "Fake",
@@ -27,7 +27,7 @@ function provider(watch: VideoProvider["watch"]): VideoProvider {
       submittedAt: 0,
     })),
     watch,
-    fetchVideo: vi.fn(async () => new Blob(["v"], { type: "video/mp4" })),
+    fetchMedia: vi.fn(async () => new Blob(["v"], { type: "video/mp4" })),
   };
 }
 

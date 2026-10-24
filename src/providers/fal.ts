@@ -14,9 +14,9 @@ import type {
   JobRef,
   KeyInfo,
   Pricing,
-  VideoModel,
-  VideoProvider,
-  VideoRequest,
+  MediaModel,
+  MediaProvider,
+  MediaRequest,
 } from "./types";
 
 const API = "https://api.fal.ai/v1";
@@ -88,7 +88,7 @@ const LAST_FRAME_FIELDS = [
 ];
 const REFERENCE_FIELDS = ["reference_image_urls", "image_urls"];
 
-export function normalizeModel(model: FalModel): VideoModel {
+export function normalizeModel(model: FalModel): MediaModel {
   const imageToVideo = model.metadata.category === "image-to-video";
   return {
     provider: "fal",
@@ -138,7 +138,7 @@ function enumOf(schema: JsonSchema | undefined): string[] | null {
 }
 
 /** Applies what the endpoint's OpenAPI input schema says it accepts. */
-export function applySchema(model: VideoModel, input: JsonSchema): VideoModel {
+export function applySchema(model: MediaModel, input: JsonSchema): MediaModel {
   const props = input.properties ?? {};
   const keys = Object.keys(props);
   const extra: Record<string, string> = { ...model.extra };
@@ -231,7 +231,7 @@ export async function listPrices(
 }
 
 export function buildBody(
-  req: VideoRequest,
+  req: MediaRequest,
   extra: Record<string, string> = {},
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {};
@@ -273,7 +273,7 @@ function statusEvent(state: FalStatus, at: number): JobEvent {
   return { kind: "status", at, status: "running", raw: state };
 }
 
-export const fal: VideoProvider = {
+export const fal: MediaProvider = {
   id: "fal",
   label: "fal",
   keyUrl: "https://fal.ai/dashboard/keys",
@@ -290,7 +290,7 @@ export const fal: VideoProvider = {
     return {};
   },
 
-  async listModels(key, signal): Promise<VideoModel[]> {
+  async listModels(key, signal): Promise<MediaModel[]> {
     const models: FalModel[] = [];
     for (const category of ["text-to-video", "image-to-video"]) {
       let cursor: string | null = null;
@@ -329,7 +329,7 @@ export const fal: VideoProvider = {
     }));
   },
 
-  async inspectModel(key, model, signal): Promise<VideoModel> {
+  async inspectModel(key, model, signal): Promise<MediaModel> {
     const [schema, prices] = await Promise.all([
       requestJson<{ models: FalModel[] }>(
         `${API}/models?endpoint_id=${encodeURIComponent(model.id)}&expand=openapi-3.0`,
@@ -438,14 +438,14 @@ export const fal: VideoProvider = {
     yield {
       kind: "completed",
       at: Date.now(),
-      result: { videoUrl: result.video.url },
+      result: { mediaUrl: result.video.url },
       raw: result,
     };
   },
 
-  async fetchVideo(_key, _job, result, signal): Promise<Blob> {
-    if (!result.videoUrl) throw new ProviderError("No video URL to download");
-    const response = await request(result.videoUrl, { signal });
+  async fetchMedia(_key, _job, result, signal): Promise<Blob> {
+    if (!result.mediaUrl) throw new ProviderError("No video URL to download");
+    const response = await request(result.mediaUrl, { signal });
     return response.blob();
   },
 

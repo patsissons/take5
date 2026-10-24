@@ -128,7 +128,7 @@ import {
 import { normalizeModel as normalizeGemini } from "../src/providers/gemini";
 import { normalizeModel as normalizeXai } from "../src/providers/xai";
 import type { ProviderId } from "../src/providers/hosts";
-import type { VideoModel } from "../src/providers/types";
+import type { MediaModel } from "../src/providers/types";
 
 const KEYS: Record<ProviderId, string> = {
   openrouter: "sk-or-v1-good",
@@ -368,7 +368,7 @@ export async function stubXai(page: Page) {
 }
 
 /** The cached model list each stub serves, as the app would normalise it. */
-export function seededModels(provider: ProviderId): VideoModel[] {
+export function seededModels(provider: ProviderId): MediaModel[] {
   switch (provider) {
     case "fal":
       return (falList.models as FalModel[]).map(normalizeFal).map((model) => ({

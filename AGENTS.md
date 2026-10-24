@@ -63,8 +63,8 @@ Commit in small, modular units (one logical change per commit).
 - Mobile-friendly: page padding comes from the `safe-x` utility in
   `index.css`; `e2e/home.spec.ts` guards against horizontal scroll.
 - **Provider adapters are the only provider-specific code.** Each file in
-  `src/providers/` implements `VideoProvider` (`types.ts`): key check,
-  model list (normalised to `VideoModel`, pricing included), submit, a
+  `src/providers/` implements `MediaProvider` (`types.ts`): key check,
+  model list (normalised to `MediaModel`, pricing included), submit, a
   `watch` generator that hides polling vs streaming behind `JobEvent`s, and
   the video download. The UI, `src/lib/use-run.ts` and history only ever
   see those neutral shapes. Adapters are unit-tested against recorded
@@ -72,8 +72,8 @@ Commit in small, modular units (one logical change per commit).
   fixtures to the browser. A provider whose list carries no capabilities
   (fal; its prices are batch-fetched with the list, fifty endpoints per
   pricing call, so the picker can filter by cost) implements `inspectModel`, which the model picker calls on pick and
-  whose result (field names in `VideoModel.extra`) is cached and echoed
-  back on `VideoRequest.extra` at submit time.
+  whose result (field names in `MediaModel.extra`) is cached and echoed
+  back on `MediaRequest.extra` at submit time.
 - **Model ranking is a bundled snapshot.** `src/lib/model-ranking.ts`
   holds arena Elo scores (fetching them would break the host list), matched
   to any provider's model by family regex plus exact tier words (fast,

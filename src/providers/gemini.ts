@@ -12,9 +12,9 @@ import type {
   JobRef,
   KeyInfo,
   Pricing,
-  VideoModel,
-  VideoProvider,
-  VideoRequest,
+  MediaModel,
+  MediaProvider,
+  MediaRequest,
 } from "./types";
 
 const API = "https://generativelanguage.googleapis.com/v1beta";
@@ -68,7 +68,7 @@ export function isVideoModel(model: GeminiModel): boolean {
   );
 }
 
-export function normalizeModel(model: GeminiModel): VideoModel {
+export function normalizeModel(model: GeminiModel): MediaModel {
   const id = model.name.replace(/^models\//, "");
   const lite = /lite/.test(id);
   return {
@@ -93,7 +93,7 @@ function inline(dataUrl: string) {
   return { inlineData: { mimeType, data: base64 } };
 }
 
-export function buildBody(req: VideoRequest): Record<string, unknown> {
+export function buildBody(req: MediaRequest): Record<string, unknown> {
   const instance: Record<string, unknown> = { prompt: req.prompt };
   const references: unknown[] = [];
   for (const image of req.images) {
@@ -111,7 +111,7 @@ export function buildBody(req: VideoRequest): Record<string, unknown> {
   return { instances: [instance], parameters };
 }
 
-export const gemini: VideoProvider = {
+export const gemini: MediaProvider = {
   id: "gemini",
   label: "Gemini (Veo)",
   keyUrl: "https://aistudio.google.com/app/apikey",
@@ -127,7 +127,7 @@ export const gemini: VideoProvider = {
     return {};
   },
 
-  async listModels(key, signal): Promise<VideoModel[]> {
+  async listModels(key, signal): Promise<MediaModel[]> {
     const models: GeminiModel[] = [];
     let pageToken: string | undefined;
     do {
@@ -180,7 +180,7 @@ export const gemini: VideoProvider = {
         yield {
           kind: "completed",
           at,
-          result: { videoUrl: uri },
+          result: { mediaUrl: uri },
           raw: operation,
         };
         return;
@@ -193,9 +193,9 @@ export const gemini: VideoProvider = {
     }
   },
 
-  async fetchVideo(key, _job, result, signal): Promise<Blob> {
-    if (!result.videoUrl) throw new ProviderError("No video URL to download");
-    const response = await request(result.videoUrl, {
+  async fetchMedia(key, _job, result, signal): Promise<Blob> {
+    if (!result.mediaUrl) throw new ProviderError("No video URL to download");
+    const response = await request(result.mediaUrl, {
       headers: auth(key),
       signal,
     });

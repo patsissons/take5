@@ -23,18 +23,18 @@ import { imageFromTransfer, isImageFile, toDataUrl } from "@/lib/image";
 import type {
   ImageInput,
   ImageRole,
-  VideoModel,
-  VideoRequest,
+  MediaModel,
+  MediaRequest,
 } from "@/providers/types";
 
 const MAX_IMAGES = 3;
 
 interface Props {
-  model: VideoModel;
+  model: MediaModel;
   /** Prefill (remix). */
-  initial?: Partial<VideoRequest>;
+  initial?: Partial<MediaRequest>;
   busy: boolean;
-  onGenerate: (req: VideoRequest) => void;
+  onGenerate: (req: MediaRequest) => void;
 }
 
 const ROLE_LABEL: Record<ImageRole, string> = {
@@ -64,7 +64,7 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
   const roles = imageRoles(model);
   const useSize = !model.resolutions?.length && !!model.sizes?.length;
 
-  const request = useMemo<VideoRequest>(
+  const request = useMemo<MediaRequest>(
     () => ({
       model: model.id,
       prompt: prompt.trim(),

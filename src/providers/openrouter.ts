@@ -9,9 +9,9 @@ import type {
   KeyInfo,
   PerSecondRate,
   Pricing,
-  VideoModel,
-  VideoProvider,
-  VideoRequest,
+  MediaModel,
+  MediaProvider,
+  MediaRequest,
 } from "./types";
 
 const API = "https://openrouter.ai/api/v1";
@@ -91,7 +91,7 @@ export function pricingFromSkus(
   return { kind: "unknown", note: "See OpenRouter for pricing" };
 }
 
-export function normalizeModel(model: OpenRouterModel): VideoModel {
+export function normalizeModel(model: OpenRouterModel): MediaModel {
   const frames = (model.supported_frame_images ?? []).filter(
     (frame): frame is FrameRole =>
       frame === "first_frame" || frame === "last_frame",
@@ -119,7 +119,7 @@ export function isGenerationModel(model: OpenRouterModel): boolean {
   return !model.upscale_factor && !/upscale|-edit\b/.test(model.id);
 }
 
-export function buildBody(req: VideoRequest): Record<string, unknown> {
+export function buildBody(req: MediaRequest): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: req.model,
     prompt: req.prompt,
@@ -168,11 +168,11 @@ export function resultOf(job: OpenRouterJob): JobResult {
   const cost = job.usage?.cost;
   return {
     costUsd: typeof cost === "number" ? cost : undefined,
-    videoUrl: job.urls?.[0],
+    mediaUrl: job.urls?.[0],
   };
 }
 
-export const openrouter: VideoProvider = {
+export const openrouter: MediaProvider = {
   id: "openrouter",
   label: "OpenRouter",
   keyUrl: "https://openrouter.ai/settings/keys",
@@ -187,7 +187,7 @@ export const openrouter: VideoProvider = {
     return { label: data.label, remainingUsd: data.limit_remaining ?? null };
   },
 
-  async listModels(key, signal): Promise<VideoModel[]> {
+  async listModels(key, signal): Promise<MediaModel[]> {
     const { data } = await requestJson<{ data: OpenRouterModel[] }>(
       `${API}/videos/models`,
       { headers: key ? auth(key) : {}, signal },
@@ -238,7 +238,7 @@ export const openrouter: VideoProvider = {
     }
   },
 
-  async fetchVideo(key, job, _result, signal): Promise<Blob> {
+  async fetchMedia(key, job, _result, signal): Promise<Blob> {
     const response = await request(
       `${API}/videos/${encodeURIComponent(job.id)}/content?index=0`,
       { headers: auth(key), signal },

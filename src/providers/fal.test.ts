@@ -389,7 +389,7 @@ describe("fal", () => {
       "completed",
     ]);
     expect(events.at(-1)).toMatchObject({
-      result: { videoUrl: "https://v3.fal.media/files/v.mp4" },
+      result: { mediaUrl: "https://v3.fal.media/files/v.mp4" },
     });
   });
 
@@ -428,8 +428,8 @@ describe("fal", () => {
       new Response("bytes"),
       new Response("", { status: 202 }),
     );
-    const blob = await fal.fetchVideo("k", job, {
-      videoUrl: "https://v3.fal.media/v.mp4",
+    const blob = await fal.fetchMedia("k", job, {
+      mediaUrl: "https://v3.fal.media/v.mp4",
     });
     expect(blob.size).toBe(5);
     expect(calls[0]!.init?.headers).toBeUndefined();

@@ -6,14 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetDb, listRuns } from "@/lib/history";
 import { REPO_URL } from "@/lib/links";
 import { clearSettings, getKey, setModelCache } from "@/lib/settings";
-import type { JobEvent, VideoProvider } from "@/providers/types";
+import type { JobEvent, MediaProvider } from "@/providers/types";
 import App from "./App";
 
 vi.mock("@/lib/thumbnail", () => ({
   captureThumbnail: async () => undefined,
 }));
 
-const fake: VideoProvider = vi.hoisted(() => ({
+const fake: MediaProvider = vi.hoisted(() => ({
   id: "openrouter",
   label: "FakeRouter",
   keyUrl: "https://keys.example",
@@ -50,7 +50,7 @@ const fake: VideoProvider = vi.hoisted(() => ({
     yield { kind: "status", at: 2, status: "running" };
     yield { kind: "completed", at: 3, result: { costUsd: 0.05 } };
   }),
-  fetchVideo: vi.fn(async () => new Blob(["mp4"], { type: "video/mp4" })),
+  fetchMedia: vi.fn(async () => new Blob(["mp4"], { type: "video/mp4" })),
 }));
 
 vi.mock("@/providers", () => ({

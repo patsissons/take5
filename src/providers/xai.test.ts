@@ -145,7 +145,7 @@ describe("xai", () => {
       expect.objectContaining({ kind: "status", status: "queued" }),
       expect.objectContaining({
         kind: "completed",
-        result: { videoUrl: "https://vidgen.x.ai/v.mp4" },
+        result: { mediaUrl: "https://vidgen.x.ai/v.mp4" },
       }),
     ]);
   });

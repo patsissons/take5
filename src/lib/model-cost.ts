@@ -1,5 +1,5 @@
 import { DEFAULT_DURATION } from "@/lib/composer-defaults";
-import type { Pricing, VideoModel } from "@/providers/types";
+import type { Pricing, MediaModel } from "@/providers/types";
 
 /** The lowest per-second rate a model lists, if it is priced per second. */
 export function cheapestPerSecond(pricing: Pricing | null): number | undefined {
@@ -12,7 +12,7 @@ export function cheapestPerSecond(pricing: Pricing | null): number | undefined {
  * the picker can compare across per-second and per-video prices.
  */
 export function clipCost(
-  model: Pick<VideoModel, "pricing">,
+  model: Pick<MediaModel, "pricing">,
 ): number | undefined {
   if (model.pricing?.kind === "per-video") return model.pricing.usd;
   const rate = cheapestPerSecond(model.pricing);
@@ -26,7 +26,7 @@ export interface CostRange {
 
 /** The cheapest and dearest clip; undefined when there is nothing to range over. */
 export function costBounds(
-  models: Array<Pick<VideoModel, "pricing">>,
+  models: Array<Pick<MediaModel, "pricing">>,
 ): CostRange | undefined {
   const costs = models
     .map(clipCost)
@@ -41,7 +41,7 @@ export function costBounds(
  * range is untouched: then everything passes, unpriced models included.
  */
 export function inCostRange(
-  model: Pick<VideoModel, "pricing">,
+  model: Pick<MediaModel, "pricing">,
   range: CostRange | null,
 ): boolean {
   if (!range) return true;

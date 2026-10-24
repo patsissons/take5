@@ -5,9 +5,9 @@ import type {
   JobRef,
   KeyInfo,
   Pricing,
-  VideoModel,
-  VideoProvider,
-  VideoRequest,
+  MediaModel,
+  MediaProvider,
+  MediaRequest,
 } from "./types";
 
 const API = "https://api.x.ai/v1";
@@ -64,7 +64,7 @@ export function pricingFor(id: string): Pricing | null {
     : null;
 }
 
-export function normalizeModel(id: string, name?: string): VideoModel {
+export function normalizeModel(id: string, name?: string): MediaModel {
   const classic = id === "grok-imagine-video";
   return {
     provider: "xai",
@@ -98,7 +98,7 @@ export function modelIds(payload: unknown): string[] {
     .filter((id): id is string => typeof id === "string" && /video/.test(id));
 }
 
-export function buildBody(req: VideoRequest): Record<string, unknown> {
+export function buildBody(req: MediaRequest): Record<string, unknown> {
   const body: Record<string, unknown> = { model: req.model };
   if (req.prompt) body.prompt = req.prompt;
   if (req.duration !== undefined) body.duration = req.duration;
@@ -121,7 +121,7 @@ export function errorOf(job: XaiJob): string {
   return job.error?.message ?? `Job ${job.status}`;
 }
 
-export const xai: VideoProvider = {
+export const xai: MediaProvider = {
   id: "xai",
   label: "xAI (Grok Imagine)",
   keyUrl: "https://console.x.ai",
@@ -137,7 +137,7 @@ export const xai: VideoProvider = {
     return { label: info.name };
   },
 
-  async listModels(key, signal): Promise<VideoModel[]> {
+  async listModels(key, signal): Promise<MediaModel[]> {
     try {
       const payload = await requestJson<unknown>(
         `${API}/video-generation-models`,
@@ -189,7 +189,7 @@ export const xai: VideoProvider = {
         yield {
           kind: "completed",
           at,
-          result: { videoUrl: state.video.url },
+          result: { mediaUrl: state.video.url },
           raw: state,
         };
         return;
@@ -211,9 +211,9 @@ export const xai: VideoProvider = {
     }
   },
 
-  async fetchVideo(_key, _job, result, signal): Promise<Blob> {
-    if (!result.videoUrl) throw new ProviderError("No video URL to download");
-    const response = await request(result.videoUrl, { signal });
+  async fetchMedia(_key, _job, result, signal): Promise<Blob> {
+    if (!result.mediaUrl) throw new ProviderError("No video URL to download");
+    const response = await request(result.mediaUrl, { signal });
     return response.blob();
   },
 };
