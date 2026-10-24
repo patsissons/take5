@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  base64ToBlob,
   errorMessage,
   parseDataUrl,
   ProviderError,
+  redactBase64,
   request,
   sleep,
 } from "./http";
@@ -96,5 +98,35 @@ describe("sse", () => {
     for await (const event of sse(response)) seen.push(event);
     // The last event has no trailing blank line, so it is never flushed.
     expect(seen).toEqual([{ n: 1 }, { n: 2 }]);
+  });
+});
+
+describe("base64ToBlob", () => {
+  it("decodes inline bytes with their type", async () => {
+    const blob = base64ToBlob("aGVs\nbG8=", "image/png");
+    expect(blob.type).toBe("image/png");
+    expect(await blob.text()).toBe("hello");
+  });
+});
+
+describe("redactBase64", () => {
+  it("replaces long base64 strings and data URLs, and nothing else", () => {
+    const bytes = "A".repeat(400);
+    expect(
+      redactBase64({
+        data: [{ b64_json: bytes, mime_type: "image/png" }],
+        url: `data:image/png;base64,${bytes}`,
+        note: "a short sentence, not base64",
+        cost: 0.04,
+      }),
+    ).toEqual({
+      data: [
+        { b64_json: "<400 characters of base64>", mime_type: "image/png" },
+      ],
+      url: "<422 characters of base64>",
+      note: "a short sentence, not base64",
+      cost: 0.04,
+    });
+    expect(redactBase64("abc")).toBe("abc");
   });
 });

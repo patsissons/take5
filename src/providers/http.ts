@@ -125,6 +125,42 @@ export function parseDataUrl(dataUrl: string): {
 }
 
 /**
+ * Bytes a provider sent inline as base64. Decoded here, not fetched as a
+ * data: URL: the CSP's connect-src does not allow data:.
+ */
+export function base64ToBlob(base64: string, type: string): Blob {
+  const binary = atob(base64.replace(/\s/g, ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type });
+}
+
+const BASE64 = /^(?:data:[^;,]+;base64,)?[A-Za-z0-9+/=\s]+$/;
+/** Strings shorter than this are left alone, even when they look like base64. */
+const REDACT_OVER = 256;
+
+/**
+ * A payload with every long base64 string (inline image bytes) replaced by
+ * a note of its size, so the raw events table stays readable.
+ */
+export function redactBase64<T>(value: T): T {
+  if (typeof value === "string") {
+    return (
+      value.length > REDACT_OVER && BASE64.test(value)
+        ? `<${value.length} characters of base64>`
+        : value
+    ) as T;
+  }
+  if (Array.isArray(value)) return value.map(redactBase64) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, redactBase64(v)]),
+    ) as T;
+  }
+  return value;
+}
+
+/**
  * Reads a text/event-stream response, yielding each event's parsed `data`
  * JSON. Plain fetch (not EventSource) so the auth header can be sent.
  */

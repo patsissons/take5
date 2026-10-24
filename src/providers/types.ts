@@ -89,6 +89,11 @@ export interface JobRef {
   submittedAt: number;
   /** Provider-specific extras (fal's URLs, Gemini's operation name…). */
   extra?: Record<string, string>;
+  /**
+   * A synchronous provider's answer, given by submit itself. Memory only:
+   * the ref is never stored with it, so there is nothing to resume.
+   */
+  answer?: TerminalEvent;
 }
 
 export type JobStatus =
@@ -96,8 +101,10 @@ export type JobStatus =
 
 export interface JobResult {
   costUsd?: number;
-  /** Where the provider put the video, when it is a URL we can fetch. */
+  /** Where the provider put the video or image, when it is a URL we can fetch. */
   mediaUrl?: string;
+  /** The bytes themselves, when the provider answered with them inline. */
+  media?: Blob;
 }
 
 /** One entry in the live timeline. `raw` is the provider payload, for the feed. */
@@ -113,6 +120,9 @@ export type JobEvent =
   | { kind: "log"; at: number; message: string; raw?: unknown }
   | { kind: "completed"; at: number; result: JobResult; raw?: unknown }
   | { kind: "failed"; at: number; error: string; raw?: unknown };
+
+/** The event that ends a run. */
+export type TerminalEvent = Extract<JobEvent, { kind: "completed" | "failed" }>;
 
 export interface KeyInfo {
   label?: string;
@@ -131,6 +141,11 @@ export interface MediaProvider {
   hosts: readonly string[];
   /** Whether cancel() stops the job at the provider (otherwise we only stop watching). */
   canCancel: boolean;
+  /**
+   * Kinds whose submit waits for the result and returns it as
+   * `JobRef.answer` (nothing is queued, so watch is never called).
+   */
+  answersAtSubmit?: readonly MediaKind[];
   validateKey(key: string, signal?: AbortSignal): Promise<KeyInfo>;
   listModels(key: string, signal?: AbortSignal): Promise<MediaModel[]>;
   /** Fills in capabilities and pricing for one model when the list has none. */

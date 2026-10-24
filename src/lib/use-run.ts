@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { isAbort, ProviderError, sleep } from "@/providers/http";
 import type {
   JobEvent,
+  JobRef,
   JobStatus,
   MediaModel,
   MediaProvider,
   MediaRequest,
+  TerminalEvent,
 } from "@/providers/types";
 import * as history from "./history";
 import { captureThumbnail } from "./thumbnail";
@@ -16,7 +18,7 @@ export interface RunState {
   status: JobStatus;
   queuePosition?: number;
   error?: string;
-  /** An object URL for the finished video. */
+  /** An object URL for the finished video or image. */
   mediaUrl?: string;
   blob?: Blob;
 }
@@ -94,9 +96,57 @@ export function useRun(
     [replaceUrl],
   );
 
+  /** Records how a run ended: the failure, or the media and its thumbnail. */
+  const settle = useCallback(
+    async (
+      run: history.Run,
+      job: JobRef,
+      event: TerminalEvent,
+      signal: AbortSignal,
+    ) => {
+      if (!provider || !key) return;
+      if (event.kind === "failed") {
+        await history.putRun({
+          ...run,
+          status: "failed",
+          finishedAt: event.at,
+          error: event.error,
+          job: undefined,
+        });
+        update({ status: "failed", error: event.error });
+        return;
+      }
+      update({ status: "running" });
+      const blob =
+        event.result.media ??
+        (await provider.fetchMedia(key, job, event.result, signal));
+      const thumbnail = await captureThumbnail(blob);
+      const finished: history.Run = {
+        ...run,
+        status: "completed",
+        finishedAt: Date.now(),
+        costUsd: event.result.costUsd,
+        thumbnail,
+        videoBytes: blob.size,
+        videoType: blob.type,
+        job: undefined,
+      };
+      await history.putMedia(run.id, blob);
+      await history.putRun(finished);
+      update({
+        run: finished,
+        status: "completed",
+        blob,
+        mediaUrl: replaceUrl(blob),
+      });
+    },
+    [provider, key, update, replaceUrl],
+  );
+
   const watch = useCallback(
     async (run: history.Run, signal: AbortSignal) => {
       if (!provider || !key || !run.job) return;
+      const job = run.job;
       const push = (event: JobEvent) =>
         update((state) => ({
           ...state,
@@ -109,46 +159,10 @@ export function useRun(
       // giving up, and never record anything while the page is unloading.
       for (let attempt = 0; ; attempt++) {
         try {
-          for await (const event of provider.watch(key, run.job, signal)) {
+          for await (const event of provider.watch(key, job, signal)) {
             push(event);
-            if (event.kind === "failed") {
-              await history.putRun({
-                ...run,
-                status: "failed",
-                finishedAt: event.at,
-                error: event.error,
-                job: undefined,
-              });
-              update({ status: "failed", error: event.error });
-              return;
-            }
-            if (event.kind === "completed") {
-              update({ status: "running" });
-              const blob = await provider.fetchMedia(
-                key,
-                run.job,
-                event.result,
-                signal,
-              );
-              const thumbnail = await captureThumbnail(blob);
-              const finished: history.Run = {
-                ...run,
-                status: "completed",
-                finishedAt: Date.now(),
-                costUsd: event.result.costUsd,
-                thumbnail,
-                videoBytes: blob.size,
-                videoType: blob.type,
-                job: undefined,
-              };
-              await history.putMedia(run.id, blob);
-              await history.putRun(finished);
-              update({
-                run: finished,
-                status: "completed",
-                blob,
-                mediaUrl: replaceUrl(blob),
-              });
+            if (event.kind === "failed" || event.kind === "completed") {
+              await settle(run, job, event, signal);
               return;
             }
           }
@@ -181,7 +195,7 @@ export function useRun(
         }
       }
     },
-    [provider, key, update, replaceUrl, retryMs],
+    [provider, key, update, settle, retryMs],
   );
 
   const start = useCallback(
@@ -199,26 +213,46 @@ export function useRun(
         status: "running",
         createdAt: Date.now(),
       };
-      setCurrent({ run, events: [], status: "submitted" });
+      // A synchronous provider is generating from the moment it is asked.
+      const synchronous = !!provider.answersAtSubmit?.includes(
+        req.kind ?? "video",
+      );
+      setCurrent({
+        run,
+        events: [],
+        status: synchronous ? "running" : "submitted",
+      });
       try {
-        const job = await provider.submit(key, req, abort.signal);
-        const submitted = { ...run, job };
-        await history.putRun(submitted);
+        const { answer, ...job } = await provider.submit(
+          key,
+          req,
+          abort.signal,
+        );
+        const submitted = { kind: "status", status: "submitted" } as const;
+        if (answer) {
+          // Nothing to resume: the run is only stored once it has ended.
+          update((state) => ({
+            ...state,
+            events: [{ ...submitted, at: run.createdAt, raw: job }, answer],
+          }));
+          await settle(run, job, answer, abort.signal);
+          return;
+        }
+        const queued = { ...run, job };
+        await history.putRun(queued);
         update((state) => ({
           ...state,
-          run: submitted,
-          events: [
-            { kind: "status", at: Date.now(), status: "submitted", raw: job },
-          ],
+          run: queued,
+          events: [{ ...submitted, at: Date.now(), raw: job }],
         }));
-        await watch(submitted, abort.signal);
+        await watch(queued, abort.signal);
       } catch (error) {
         if (ignorable(error)) return;
         const message = (error as Error).message || "Could not submit the job";
         update({ status: "failed", error: message });
       }
     },
-    [provider, key, update, watch, replaceUrl],
+    [provider, key, update, watch, settle, replaceUrl],
   );
 
   /** Picks up a run that was in flight when the page was last closed. */
