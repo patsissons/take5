@@ -69,6 +69,16 @@ describe("history file", () => {
     expect(await (await getMedia("c"))?.text()).toBe("png-c!");
   });
 
+  it("carries only the chosen runs", async () => {
+    await seed();
+    const backup = await exportBackup(new Set(["c", "d"]));
+    expect(backup.runs).toBe(1);
+    await clearHistory();
+    expect(await importBackup(backup.blob)).toEqual({ added: 1, skipped: 0 });
+    expect((await listRuns()).map((r) => r.id)).toEqual(["c"]);
+    expect(await getMedia("a")).toBeUndefined();
+  });
+
   it("never carries a running job's ref", async () => {
     await putRun(
       run("a", {

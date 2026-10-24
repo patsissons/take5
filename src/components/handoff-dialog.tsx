@@ -1,6 +1,7 @@
 import { Check, Copy, Download, RefreshCw, Smartphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { HistoryImport } from "@/components/history-import";
+import { HistoryPicker } from "@/components/history-picker";
 import { QrCode } from "@/components/qr-code";
 import { Button } from "@/components/ui/button";
 import {
@@ -53,6 +54,7 @@ export function HandoffDialog({ runs, disabled, onHistoryImported }: Props) {
   const [sealed, setSealed] = useState<Sealed | null>(null);
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [excluded, setExcluded] = useState<Set<string>>(() => new Set());
 
   useEffect(() => {
     if (!open) return;
@@ -75,10 +77,8 @@ export function HandoffDialog({ runs, disabled, onHistoryImported }: Props) {
   }, [open, withHistory, round]);
 
   const finished = runs.filter((run) => run.status !== "running");
-  const bytes = finished.reduce(
-    (total, run) => total + (run.videoBytes ?? 0),
-    0,
-  );
+  const chosen = finished.filter((run) => !excluded.has(run.id));
+  const bytes = chosen.reduce((total, run) => total + (run.videoBytes ?? 0), 0);
 
   const copyLink = async () => {
     if (!sealed) return;
@@ -94,7 +94,7 @@ export function HandoffDialog({ runs, disabled, onHistoryImported }: Props) {
   const download = async () => {
     setExporting(true);
     try {
-      const backup = await exportBackup();
+      const backup = await exportBackup(new Set(chosen.map((run) => run.id)));
       const url = URL.createObjectURL(backup.blob);
       const anchor = document.createElement("a");
       anchor.href = url;
@@ -205,15 +205,22 @@ export function HandoffDialog({ runs, disabled, onHistoryImported }: Props) {
           </div>
           {withHistory && (
             <>
+              {finished.length > 0 && (
+                <HistoryPicker
+                  runs={finished}
+                  excluded={excluded}
+                  onChange={setExcluded}
+                />
+              )}
               <Button
                 type="button"
-                disabled={exporting || finished.length === 0}
+                disabled={exporting || chosen.length === 0}
                 onClick={() => void download()}
               >
                 <Download data-icon="inline-start" />
                 {exporting
                   ? "Packing…"
-                  : `Download history file (${finished.length === 1 ? "1 run" : `${finished.length} runs`} · ${formatBytes(bytes)})`}
+                  : `Download history file (${chosen.length === 1 ? "1 run" : `${chosen.length} runs`} · ${formatBytes(bytes)})`}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Send the file to your phone yourself (AirDrop, Nearby Share,

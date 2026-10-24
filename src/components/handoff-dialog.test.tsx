@@ -92,4 +92,39 @@ describe("HandoffDialog", () => {
     const opened = await openHandoff(sealedFromHash(new URL(link).hash)!, code);
     expect(opened).toMatchObject({ ok: true, config: { history: true } });
   }, 15_000);
+
+  it("brings every run unless some are unticked", async () => {
+    const { user, dialog } = await openDialog([
+      run("a", { videoBytes: 1_000_000 }),
+      run("b", { videoBytes: 2_000_000 }),
+      run("c", { videoBytes: 3_000_000 }),
+    ]);
+    await user.click(
+      within(dialog).getByRole("switch", { name: /history and media/i }),
+    );
+    const all = within(dialog).getByRole("checkbox", { name: "Select all" });
+    const runs = within(dialog).getByRole("list", { name: "Runs to bring" });
+    expect(all).toBeChecked();
+    expect(within(runs).getAllByRole("checkbox")).toHaveLength(3);
+    for (const box of within(runs).getAllByRole("checkbox")) {
+      expect(box).toBeChecked();
+    }
+    const download = () =>
+      within(dialog).getByRole("button", { name: /download history/i });
+    expect(download()).toHaveTextContent("(3 runs · 6.0 MB)");
+
+    await user.click(within(runs).getByRole("checkbox", { name: /prompt b/ }));
+    expect(all).toHaveAttribute("aria-checked", "mixed");
+    expect(within(dialog).getByText("2 of 3 selected")).toBeInTheDocument();
+    expect(download()).toHaveTextContent("(2 runs · 4.0 MB)");
+
+    // From part-way, select all ticks everything; again clears it.
+    await user.click(all);
+    expect(all).toBeChecked();
+    expect(download()).toHaveTextContent("(3 runs · 6.0 MB)");
+    await user.click(all);
+    expect(all).not.toBeChecked();
+    expect(download()).toBeDisabled();
+    expect(download()).toHaveTextContent("(0 runs · 0 kB)");
+  }, 10_000);
 });
