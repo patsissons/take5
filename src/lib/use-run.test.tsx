@@ -17,6 +17,7 @@ function provider(watch: MediaProvider["watch"]): MediaProvider {
     keyUrl: "",
     keyHint: "",
     hosts: [],
+    kinds: ["video"],
     canCancel: false,
     validateKey: vi.fn(),
     listModels: vi.fn(),

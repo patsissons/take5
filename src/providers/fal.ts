@@ -280,6 +280,7 @@ export const fal: MediaProvider = {
   keyUrl: "https://fal.ai/dashboard/keys",
   keyHint: "key_id:key_secret",
   hosts: PROVIDER_HOSTS.fal,
+  kinds: ["video"],
   canCancel: true,
 
   async validateKey(key, signal): Promise<KeyInfo> {
@@ -291,7 +292,8 @@ export const fal: MediaProvider = {
     return {};
   },
 
-  async listModels(key, signal): Promise<MediaModel[]> {
+  async listModels(key, kind, signal): Promise<MediaModel[]> {
+    if (kind !== "video") return [];
     const models: FalModel[] = [];
     for (const category of ["text-to-video", "image-to-video"]) {
       let cursor: string | null = null;

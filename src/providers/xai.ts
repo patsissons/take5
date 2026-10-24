@@ -128,6 +128,7 @@ export const xai: MediaProvider = {
   keyUrl: "https://console.x.ai",
   keyHint: "xai-…",
   hosts: PROVIDER_HOSTS.xai,
+  kinds: ["video"],
   canCancel: false,
 
   async validateKey(key, signal): Promise<KeyInfo> {
@@ -138,7 +139,8 @@ export const xai: MediaProvider = {
     return { label: info.name };
   },
 
-  async listModels(key, signal): Promise<MediaModel[]> {
+  async listModels(key, kind, signal): Promise<MediaModel[]> {
+    if (kind !== "video") return [];
     try {
       const payload = await requestJson<unknown>(
         `${API}/video-generation-models`,

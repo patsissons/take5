@@ -19,6 +19,7 @@ const fake: MediaProvider = vi.hoisted(() => ({
   keyUrl: "https://keys.example",
   keyHint: "sk-fake",
   hosts: ["api.example"],
+  kinds: ["video"],
   canCancel: false,
   validateKey: vi.fn(async (key: string) => {
     if (key !== "good") throw new Error("Bad key");
@@ -155,7 +156,11 @@ describe("App", () => {
     localStorage.setItem("take5:provider", "openrouter");
     localStorage.setItem("take5:key:openrouter", "good");
     localStorage.setItem("take5:model:openrouter", "fake/fast");
-    setModelCache("openrouter", await fake.listModels("good"), "video");
+    setModelCache(
+      "openrouter",
+      await fake.listModels("good", "video"),
+      "video",
+    );
     render(<App />);
     expect(screen.getByTestId("studio-bar")).toHaveTextContent(
       "FakeRouter · Fast",
