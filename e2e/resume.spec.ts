@@ -11,11 +11,14 @@ test("a reload mid-job picks the job back up and finishes it", async ({
   await page.goto("/");
   await page.getByLabel("Prompt").fill("slow one");
   await page.getByRole("button", { name: "Generate" }).click();
+  // The step is listed from the start; it is current only once the
+  // provider has answered a poll, by which time the job is on record.
   await expect(
     page
       .getByRole("region", { name: "Progress" })
-      .getByText("Queued", { exact: true }),
-  ).toBeVisible();
+      .getByRole("listitem")
+      .filter({ hasText: "Queued" }),
+  ).toHaveAttribute("aria-current", "step");
 
   await page.reload();
   await expect(page.getByRole("region", { name: "Progress" })).toBeVisible();
