@@ -1,10 +1,14 @@
-/** A small JPEG of the first frame of a video blob, for the history gallery. */
+/**
+ * A small JPEG for the history gallery: the first frame of a video, or the
+ * image itself scaled down.
+ */
 export const THUMBNAIL_WIDTH = 320;
 
 export function captureThumbnail(
   blob: Blob,
   timeoutMs = 8000,
 ): Promise<string | undefined> {
+  if (blob.type.startsWith("image/")) return imageThumbnail(blob);
   return new Promise((resolve) => {
     if (typeof document === "undefined") return resolve(undefined);
     const url = URL.createObjectURL(blob);
@@ -55,4 +59,27 @@ export function captureThumbnail(
     );
     video.src = url;
   });
+}
+
+/** Undefined when the browser cannot decode the image (an SVG, say). */
+async function imageThumbnail(blob: Blob): Promise<string | undefined> {
+  if (
+    typeof document === "undefined" ||
+    typeof createImageBitmap !== "function"
+  )
+    return undefined;
+  try {
+    const bitmap = await createImageBitmap(blob);
+    const scale = Math.min(1, THUMBNAIL_WIDTH / (bitmap.width || 1));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return undefined;
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    return canvas.toDataURL("image/jpeg", 0.8);
+  } catch {
+    return undefined;
+  }
 }

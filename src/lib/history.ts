@@ -1,4 +1,4 @@
-import type { JobRef, MediaRequest } from "@/providers/types";
+import type { JobRef, MediaKind, MediaRequest } from "@/providers/types";
 import type { ProviderId } from "@/providers/hosts";
 
 /**
@@ -23,10 +23,19 @@ export interface Run {
   job?: JobRef;
   costUsd?: number;
   error?: string;
-  /** A JPEG data URL of the first frame. */
+  /** A small JPEG data URL: a video's first frame, or the image scaled down. */
   thumbnail?: string;
+  /**
+   * Size and type of the stored media, video or image. The names predate
+   * images; renaming stored fields would need a migration.
+   */
   videoBytes?: number;
   videoType?: string;
+}
+
+/** Whether a run made a clip or a still; runs from before stills are clips. */
+export function runKind(run: Pick<Run, "request">): MediaKind {
+  return run.request.kind ?? "video";
 }
 
 let dbPromise: Promise<IDBDatabase | null> | undefined;
@@ -96,7 +105,10 @@ function committed(transaction: IDBTransaction): Promise<void> {
   });
 }
 
-/** Videos are stored as bytes + type: an ArrayBuffer clones everywhere. */
+/**
+ * Media (videos and, despite the store's name, images) is stored as
+ * bytes + type: an ArrayBuffer clones everywhere.
+ */
 interface StoredVideo {
   type: string;
   bytes: ArrayBuffer;
@@ -193,8 +205,20 @@ export async function storageEstimate(): Promise<{
   }
 }
 
-/** The download name for a run's video. */
+const IMAGE_EXTENSIONS: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/svg+xml": "svg",
+  "image/avif": "avif",
+};
+
+/** The download name for a run's video or image. */
 export function mediaFileName(run: Run): string {
-  const ext = run.videoType?.includes("webm") ? "webm" : "mp4";
+  const type = run.videoType?.split(";")[0]?.trim().toLowerCase() ?? "";
+  const ext =
+    IMAGE_EXTENSIONS[type] ??
+    (runKind(run) === "image" ? "png" : type.includes("webm") ? "webm" : "mp4");
   return `take5-${run.id}.${ext}`;
 }
