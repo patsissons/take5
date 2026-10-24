@@ -75,6 +75,34 @@ describe("HistoryGallery", () => {
     expect(onRemix).toHaveBeenCalledWith(expect.objectContaining({ id: "b" }));
   });
 
+  it("describes a still by its shape instead of a length", () => {
+    render(
+      <HistoryGallery
+        runs={[
+          run("s", {
+            modelName: "Nano Banana 2",
+            request: {
+              kind: "image",
+              model: "m",
+              prompt: "a fox",
+              resolution: "1K",
+              aspectRatio: "1:1",
+              images: [],
+            },
+          }),
+        ]}
+        estimate={null}
+        onOpen={() => {}}
+        onRemix={() => {}}
+        onDelete={() => {}}
+        onClear={() => {}}
+      />,
+    );
+    const item = screen.getByRole("list", { name: "Past runs" }).firstChild;
+    expect(item).toHaveTextContent("OpenRouter · Nano Banana 2 · 1K · 1:1");
+    expect(item).not.toHaveTextContent("5s");
+  });
+
   it("asks before clearing everything", async () => {
     const onClear = vi.fn();
     render(

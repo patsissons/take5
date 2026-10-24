@@ -274,4 +274,42 @@ describe("ModelPicker with inspectModel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("schema down");
     expect(onPick).not.toHaveBeenCalled();
   });
+
+  it("lists a provider's image models with their own arena and unit cost", async () => {
+    const still = (id: string, name: string, usd: number): MediaModel => ({
+      ...customModel("openrouter", id, "image"),
+      name,
+      pricing: { kind: "per-image", rates: [{ usd }] },
+    });
+    const listModels = vi.fn(async () => [
+      still("x/cheap", "Cheap", 0.01),
+      still("google/gemini-3-pro-image", "Nano Banana Pro", 0.134),
+    ]);
+    render(
+      <ModelPicker
+        kind="image"
+        provider={fakeProvider(listModels)}
+        apiKey="k"
+        onPick={() => {}}
+      />,
+    );
+    const list = await screen.findByRole("list", { name: "Models" });
+    expect(listModels).toHaveBeenCalledWith("k", "image");
+    // Ranked from the image arena: the Elo puts Nano Banana Pro first.
+    expect(list.querySelectorAll("li")[0]).toHaveTextContent(
+      "Arena Elo1118Nano Banana Pro",
+    );
+    expect(screen.getByText("Cost per image")).toBeVisible();
+    expect(screen.getByTestId("cost-range")).toHaveTextContent(
+      "$0.01 – $0.134",
+    );
+    expect(
+      screen.getByRole("link", { name: "Image Arena Elo" }),
+    ).toHaveAttribute(
+      "href",
+      "https://artificialanalysis.ai/text-to-image/arena/leaderboard-text",
+    );
+    expect(getModelCache("openrouter", "image")?.models).toHaveLength(2);
+    expect(getModelCache("openrouter", "video")).toBeNull();
+  });
 });

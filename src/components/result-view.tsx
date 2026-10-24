@@ -2,7 +2,7 @@ import { Check, Copy, Download, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { formatUsd } from "@/lib/cost";
-import { mediaFileName, type Run } from "@/lib/history";
+import { mediaFileName, runKind, type Run } from "@/lib/history";
 import { runDuration } from "@/lib/time";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
   onRemix: (run: Run) => void;
 }
 
-/** The finished clip with download, copy-prompt and remix. */
+/** The finished clip or still with download, copy-prompt and remix. */
 export function ResultView({ run, mediaUrl, onRemix }: Props) {
   const [copied, setCopied] = useState(false);
   const took = runDuration(run);
@@ -28,16 +28,25 @@ export function ResultView({ run, mediaUrl, onRemix }: Props) {
 
   return (
     <section aria-label="Result" className="flex flex-col gap-3">
-      <video
-        src={mediaUrl}
-        autoPlay
-        muted
-        loop
-        controls
-        playsInline
-        className="w-full rounded-xl border bg-black"
-        data-testid="result-video"
-      />
+      {runKind(run) === "image" ? (
+        <img
+          src={mediaUrl}
+          alt={run.request.prompt}
+          className="max-h-[80dvh] w-full rounded-xl border bg-muted object-contain"
+          data-testid="result-image"
+        />
+      ) : (
+        <video
+          src={mediaUrl}
+          autoPlay
+          muted
+          loop
+          controls
+          playsInline
+          className="w-full rounded-xl border bg-black"
+          data-testid="result-video"
+        />
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Button asChild>
           <a href={mediaUrl} download={mediaFileName(run)}>

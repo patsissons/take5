@@ -63,16 +63,19 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
 
   const roles = imageRoles(model);
   const useSize = !model.resolutions?.length && !!model.sizes?.length;
+  const still = model.kind === "image";
+  const maxImages = model.maxImages ?? MAX_IMAGES;
 
   const request = useMemo<MediaRequest>(
     () => ({
+      kind: model.kind,
       model: model.id,
       prompt: prompt.trim(),
-      duration,
+      duration: still ? undefined : duration,
       resolution: useSize ? undefined : resolution,
       aspectRatio: useSize ? undefined : aspectRatio,
       size: useSize ? size : undefined,
-      audio: model.audio ? audio : undefined,
+      audio: model.audio && !still ? audio : undefined,
       images,
       ...(model.extra ? { extra: model.extra } : {}),
     }),
@@ -86,16 +89,20 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
       audio,
       images,
       useSize,
+      still,
     ],
   );
   const estimate = estimateCost(model.pricing, request);
-  const canSubmit = !busy && request.prompt.length > 0;
+  const needsImage = !!model.imageRequired && images.length === 0;
+  const canSubmit = !busy && request.prompt.length > 0 && !needsImage;
 
   const addImage = useCallback(
     async (file: File) => {
       if (!isImageFile(file)) return setImageError("That is not an image");
-      if (images.length >= MAX_IMAGES)
-        return setImageError(`At most ${MAX_IMAGES} images`);
+      if (images.length >= maxImages)
+        return setImageError(
+          maxImages === 1 ? "Only one image" : `At most ${maxImages} images`,
+        );
       if (roles.length === 0)
         return setImageError("This model takes no images");
       try {
@@ -112,7 +119,7 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
         setImageError((error as Error).message || "Could not read that image");
       }
     },
-    [images, roles],
+    [images, roles, maxImages],
   );
 
   const onDrop = (event: DragEvent) => {
@@ -163,15 +170,22 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
         <Label htmlFor="prompt">Prompt</Label>
         <Textarea
           id="prompt"
-          placeholder="A corgi surfing a wave at golden hour, slow motion"
+          placeholder={
+            still
+              ? "A corgi in a tiny wetsuit on a surfboard, studio portrait"
+              : "A corgi surfing a wave at golden hour, slow motion"
+          }
           rows={3}
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           onKeyDown={onKeyDown}
         />
         <p className="text-xs text-muted-foreground">
-          ⌘/Ctrl + Enter to generate. Drop or paste an image to use as a
-          reference.
+          ⌘/Ctrl + Enter to generate.
+          {roles.length > 0 &&
+            (model.imageRequired
+              ? " This model edits an image: drop, paste or add one."
+              : " Drop or paste an image to use as a reference.")}
         </p>
       </div>
 
@@ -220,7 +234,7 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
               </Button>
             </figure>
           ))}
-          {images.length < MAX_IMAGES && (
+          {images.length < maxImages && (
             <Button
               type="button"
               variant="outline"
@@ -251,33 +265,37 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="grid gap-1">
-          <Label htmlFor="duration">Duration</Label>
-          {model.durations?.length ? (
-            <select
-              id="duration"
-              className="h-8 rounded-lg border bg-background px-2 text-sm"
-              value={duration}
-              onChange={(event) => setDuration(Number(event.target.value))}
-            >
-              {model.durations.map((d) => (
-                <option key={d} value={d}>
-                  {d}s
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              id="duration"
-              type="number"
-              min={1}
-              max={60}
-              className="h-8 rounded-lg border bg-background px-2 text-sm"
-              value={duration}
-              onChange={(event) => setDuration(Number(event.target.value) || 1)}
-            />
-          )}
-        </div>
+        {!still && (
+          <div className="grid gap-1">
+            <Label htmlFor="duration">Duration</Label>
+            {model.durations?.length ? (
+              <select
+                id="duration"
+                className="h-8 rounded-lg border bg-background px-2 text-sm"
+                value={duration}
+                onChange={(event) => setDuration(Number(event.target.value))}
+              >
+                {model.durations.map((d) => (
+                  <option key={d} value={d}>
+                    {d}s
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id="duration"
+                type="number"
+                min={1}
+                max={60}
+                className="h-8 rounded-lg border bg-background px-2 text-sm"
+                value={duration}
+                onChange={(event) =>
+                  setDuration(Number(event.target.value) || 1)
+                }
+              />
+            )}
+          </div>
+        )}
         {useSize ? (
           <div className="grid gap-1">
             <Label htmlFor="size">Size</Label>
@@ -332,7 +350,7 @@ export function Composer({ model, initial, busy, onGenerate }: Props) {
             ) : null}
           </>
         )}
-        {model.audio && (
+        {model.audio && !still && (
           <div className="grid gap-1">
             <Label htmlFor="audio">Audio</Label>
             <div className="flex h-8 items-center">

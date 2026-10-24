@@ -136,7 +136,7 @@ export function SetupCard({
             Choose a model
           </h2>
           <p className="mt-1 mb-4 text-sm text-muted-foreground">
-            Only {provider.label}'s video models are listed.
+            Only {provider.label}'s {settings.mode} models are listed.
           </p>
           <ModelPicker
             provider={provider}
