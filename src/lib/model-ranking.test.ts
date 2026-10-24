@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { arenaElo, arenaEntry, rankModels } from "./model-ranking";
 
 const m = (id: string, name = id) => ({ id, name });
+const still = (id: string, name = id) => ({ id, name, kind: "image" as const });
 
 describe("arenaEntry", () => {
   it("matches the same family across each provider's slug style", () => {
@@ -57,6 +58,67 @@ describe("arenaEntry", () => {
     expect(arenaElo(m("grok-imagine-video"))).toBeUndefined();
     expect(arenaElo(m("minimax/hailuo-2.3"))).toBeUndefined();
     expect(arenaElo(m("veo-3.10"))).toBeUndefined();
+  });
+});
+
+describe("arenaEntry for image models", () => {
+  it("matches Gemini, OpenRouter and fal spellings of Nano Banana", () => {
+    expect(arenaEntry(still("gemini-3.1-flash-image-preview"))?.name).toBe(
+      "Nano Banana 2",
+    );
+    expect(
+      arenaEntry(
+        still(
+          "google/gemini-3.1-flash-image-preview",
+          "Google: Nano Banana 2 (Gemini 3.1 Flash Image Preview)",
+        ),
+      )?.name,
+    ).toBe("Nano Banana 2");
+    expect(arenaEntry(still("fal-ai/nano-banana-2/edit"))?.name).toBe(
+      "Nano Banana 2",
+    );
+    expect(arenaEntry(still("gemini-3.1-flash-lite-image"))?.name).toBe(
+      "Nano Banana 2 Lite",
+    );
+    expect(arenaEntry(still("gemini-3-pro-image-preview"))?.name).toBe(
+      "Nano Banana Pro",
+    );
+    expect(arenaEntry(still("fal-ai/nano-banana-pro"))?.name).toBe(
+      "Nano Banana Pro",
+    );
+    expect(arenaEntry(still("gemini-nano-banana-2.1"))?.name).toBe(
+      "Nano Banana 2.1",
+    );
+    expect(arenaEntry(still("fal-ai/nano-banana/edit"))?.name).toBe(
+      "Nano Banana",
+    );
+  });
+
+  it("keeps image tiers apart", () => {
+    expect(arenaElo(still("grok-imagine-image"))).toBe(1022);
+    expect(arenaElo(still("grok-imagine-image-quality"))).toBe(1049);
+    expect(arenaElo(still("x-ai/grok-imagine-image-2.0"))).toBe(1166);
+    expect(arenaElo(still("black-forest-labs/flux.2-pro"))).toBe(1003);
+    expect(arenaElo(still("fal-ai/flux-2-flex"))).toBe(1026);
+    expect(arenaElo(still("fal-ai/flux-2", "FLUX.2 [dev]"))).toBe(1000);
+    expect(arenaElo(still("fal-ai/flux-2/turbo", "FLUX.2 [dev] Turbo"))).toBe(
+      994,
+    );
+    expect(
+      arenaElo(still("fal-ai/bytedance/seedream/v4.5/text-to-image")),
+    ).toBe(1026);
+    expect(arenaElo(still("bytedance-seed/seedream-5-0-pro"))).toBe(1100);
+    expect(arenaElo(still("fal-ai/flux-pro/kontext/max"))).toBe(929);
+    // Unlisted tiers and versions stay unranked.
+    expect(arenaElo(still("fal-ai/flux-2/klein/9b"))).toBeUndefined();
+    expect(arenaElo(still("fal-ai/qwen-image-2.0"))).toBeUndefined();
+  });
+
+  it("never scores a video model from the image arena, or back", () => {
+    expect(arenaEntry(still("fal-ai/flux-3"))?.name).toBe("FLUX 3 Image");
+    expect(arenaEntry(m("fal-ai/flux-3/max"))?.name).toBe("FLUX 3 Max");
+    expect(arenaElo(m("grok-imagine-image"))).toBeUndefined();
+    expect(arenaElo(still("google/veo-3.1"))).toBeUndefined();
   });
 });
 
