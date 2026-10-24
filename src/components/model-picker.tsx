@@ -8,7 +8,7 @@ import { formatUsd } from "@/lib/cost";
 import { DEFAULT_DURATION } from "@/lib/composer-defaults";
 import { badges } from "@/lib/model-badges";
 import { COST_STEPS, costAt, costBounds, inCostRange } from "@/lib/model-cost";
-import { ARENA, arenaElo, rankModels } from "@/lib/model-ranking";
+import { ARENAS, arenaElo, rankModels } from "@/lib/model-ranking";
 import { getModelCache, setModelCache } from "@/lib/settings";
 import { customModel } from "@/lib/use-settings";
 import type { MediaKind, MediaModel, MediaProvider } from "@/providers/types";
@@ -100,6 +100,7 @@ export function ModelPicker({
     if (load.status === "loading") void refresh();
   }, [load.status, refresh]);
 
+  const arena = ARENAS[kind];
   const ranked = useMemo(() => rankModels(load.models), [load.models]);
 
   // The cost slider's thumbs, remembered with the bounds they were set
@@ -249,7 +250,7 @@ export function ModelPicker({
                       <Badge
                         variant="outline"
                         className="self-center"
-                        title={`Video Arena Elo, as of ${ARENA.asOf}`}
+                        title={`${arena.label} Elo, as of ${arena.asOf}`}
                       >
                         <Trophy data-icon="inline-start" aria-hidden />
                         <span className="sr-only">Arena Elo</span>
@@ -278,14 +279,14 @@ export function ModelPicker({
         <p className="text-xs text-muted-foreground">
           Ranked by{" "}
           <a
-            href={ARENA.url}
+            href={arena.url}
             target="_blank"
             rel="noreferrer noopener"
             className="underline hover:text-foreground"
           >
-            Video Arena Elo
+            {arena.label} Elo
           </a>{" "}
-          as of {ARENA.asOf}; unranked models last.
+          as of {arena.asOf}; unranked models last.
         </p>
       )}
 
