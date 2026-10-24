@@ -25,6 +25,9 @@ jobs:
       github.event.action != 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    # The Cloudflare secrets live on environments, not the repository: this
+    # one holds a token for previews, so PRs never use production's.
+    environment: preview
     steps:
       - uses: actions/checkout@v5
 
@@ -69,6 +72,7 @@ jobs:
       github.event.action == 'closed' &&
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    environment: preview
     steps:
       # wrangler.jsonc names the Worker; no build needed.
       - uses: actions/checkout@v5

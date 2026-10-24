@@ -130,8 +130,10 @@ Requires `wrangler login` (or `CLOUDFLARE_API_TOKEN`, e.g. in a gitignored
 `.env`). Production is served at <https://take5.lgtm.page> (a custom domain
 in `wrangler.jsonc` `routes`), with a `workers.dev` fallback.
 
-CI (`.github/workflows/ci.yml`) validates every PR and deploys `main`; it
-needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` repository
-secrets. Every PR also gets a preview (`.github/workflows/preview.yml`) at
+CI (`.github/workflows/ci.yml`) validates every PR and deploys `main`.
+Every PR also gets a preview (`.github/workflows/preview.yml`) at
 `https://pr-<N>-take5.<subdomain>.workers.dev`, posted as a PR comment and
-deleted when the PR is closed.
+deleted when the PR is closed. Both read `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID` from GitHub environment secrets, not repository
+ones: the deploy from the `production` environment, previews from the
+`preview` environment.
