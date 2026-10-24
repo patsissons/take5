@@ -1,0 +1,65 @@
+{
+  "models": [
+    {
+      "aliases": [],
+      "fingerprint": "fp_e2e",
+      "created": 1790000000,
+      "object": "model",
+      "owned_by": "xai",
+      "version": "1.0.0",
+      "max_prompt_length": 8192,
+      "output_modalities": ["image"],
+      "id": "grok-imagine-image-2.0",
+      "input_modalities": ["text", "image"],
+      "image_price": 4,
+      "pricing": [
+        {
+          "quality": "low",
+          "resolution": "1k",
+          "price_per_image": 400000000
+        },
+        {
+          "quality": "low",
+          "resolution": "2k",
+          "price_per_image": 600000000
+        },
+        {
+          "quality": "medium",
+          "resolution": "1k",
+          "price_per_image": 600000000
+        },
+        {
+          "quality": "medium",
+          "resolution": "2k",
+          "price_per_image": 800000000
+        }
+      ]
+    },
+    {
+      "aliases": [],
+      "fingerprint": "fp_e2e",
+      "created": 1790000000,
+      "object": "model",
+      "owned_by": "xai",
+      "version": "1.0.0",
+      "max_prompt_length": 8192,
+      "output_modalities": ["image"],
+      "id": "grok-imagine-image",
+      "input_modalities": ["text", "image"],
+      "image_price": 2
+    },
+    {
+      "aliases": [],
+      "fingerprint": "fp_e2e",
+      "created": 1790000000,
+      "object": "model",
+      "owned_by": "xai",
+      "version": "1.0.0",
+      "max_prompt_length": 8192,
+      "output_modalities": ["image"],
+      "id": "grok-imagine-image-text-only",
+      "input_modalities": ["text"],
+      "image_price": 2
+    }
+  ]
+}
