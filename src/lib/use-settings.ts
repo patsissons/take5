@@ -7,22 +7,31 @@ export interface Settings {
   provider: ProviderId | null;
   key: string | null;
   remember: boolean;
-  /** The last-used model slug for the current provider. */
+  /** Whether the studio makes videos or images. */
+  mode: MediaKind;
+  /** The last-used model slug for the current provider and mode. */
   model: string | null;
 }
 
 function load(provider = settings.getProvider()): Settings {
+  const mode = settings.getMode();
   return {
     provider,
     key: provider ? settings.getKey(provider) : null,
     remember: settings.getRemember(),
-    model: provider ? settings.getLastModel(provider) : null,
+    mode,
+    model: provider ? settings.getLastModel(provider, mode) : null,
   };
 }
 
-/** The remembered provider, key and model, kept in sync with storage. */
+/** The remembered provider, key, mode and model, kept in sync with storage. */
 export function useSettings() {
   const [state, setState] = useState<Settings>(() => load());
+
+  const chooseMode = useCallback((mode: MediaKind) => {
+    settings.setMode(mode);
+    setState((current) => load(current.provider));
+  }, []);
 
   const chooseProvider = useCallback((provider: ProviderId) => {
     settings.setProvider(provider);
@@ -43,28 +52,43 @@ export function useSettings() {
     setState(load(provider));
   }, []);
 
-  const chooseModel = useCallback((provider: ProviderId, model: string) => {
-    settings.setLastModel(provider, model);
-    setState(load(provider));
-  }, []);
+  const chooseModel = useCallback(
+    (provider: ProviderId, model: string, kind: MediaKind) => {
+      settings.setLastModel(provider, model, kind);
+      setState(load(provider));
+    },
+    [],
+  );
 
   const reset = useCallback(() => {
     settings.clearSettings();
     setState(load(null));
   }, []);
 
-  return { ...state, chooseProvider, saveKey, forgetKey, chooseModel, reset };
+  return {
+    ...state,
+    chooseProvider,
+    chooseMode,
+    saveKey,
+    forgetKey,
+    chooseModel,
+    reset,
+  };
 }
 
 /**
  * The full model record for a slug: from the cached list, or a bare record
  * for a slug typed by hand (the composer then shows free-form controls).
  */
-export function resolveModel(provider: ProviderId, id: string): MediaModel {
+export function resolveModel(
+  provider: ProviderId,
+  id: string,
+  kind: MediaKind,
+): MediaModel {
   const cached = settings
-    .getModelCache(provider)
+    .getModelCache(provider, kind)
     ?.models.find((model) => model.id === id);
-  return cached ?? customModel(provider, id);
+  return cached ?? customModel(provider, id, kind);
 }
 
 export function customModel(

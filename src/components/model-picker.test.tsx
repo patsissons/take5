@@ -34,6 +34,7 @@ describe("ModelPicker", () => {
     const listModels = vi.fn(async () => models);
     render(
       <ModelPicker
+        kind="video"
         provider={fakeProvider(listModels)}
         apiKey="k"
         onPick={() => {}}
@@ -44,15 +45,16 @@ describe("ModelPicker", () => {
     expect(list.querySelectorAll("li")).toHaveLength(2);
     expect(screen.getByText("5s")).toBeInTheDocument();
     expect(screen.getByText("audio")).toBeInTheDocument();
-    expect(getModelCache("openrouter")?.models).toHaveLength(2);
+    expect(getModelCache("openrouter", "video")?.models).toHaveLength(2);
     expect(listModels).toHaveBeenCalledTimes(1);
   });
 
   it("starts from the cache and refreshes on demand", async () => {
-    setModelCache("openrouter", [models[0]!]);
+    setModelCache("openrouter", [models[0]!], "video");
     const listModels = vi.fn(async () => models);
     render(
       <ModelPicker
+        kind="video"
         provider={fakeProvider(listModels)}
         apiKey="k"
         onPick={() => {}}
@@ -73,10 +75,11 @@ describe("ModelPicker", () => {
   });
 
   it("filters by search and picks a model", async () => {
-    setModelCache("openrouter", models);
+    setModelCache("openrouter", models, "video");
     const onPick = vi.fn();
     render(
       <ModelPicker
+        kind="video"
         provider={fakeProvider(vi.fn())}
         apiKey="k"
         onPick={onPick}
@@ -89,16 +92,21 @@ describe("ModelPicker", () => {
   });
 
   it("ranks models by arena Elo, unranked last, with a badge", () => {
-    setModelCache("openrouter", [
-      ...models,
-      {
-        ...customModel("openrouter", "google/veo-3.1-lite"),
-        name: "Veo 3.1 Lite",
-      },
-      { ...customModel("openrouter", "alibaba/wan-3.0"), name: "Wan 3.0" },
-    ]);
+    setModelCache(
+      "openrouter",
+      [
+        ...models,
+        {
+          ...customModel("openrouter", "google/veo-3.1-lite"),
+          name: "Veo 3.1 Lite",
+        },
+        { ...customModel("openrouter", "alibaba/wan-3.0"), name: "Wan 3.0" },
+      ],
+      "video",
+    );
     render(
       <ModelPicker
+        kind="video"
         provider={fakeProvider(vi.fn())}
         apiKey="k"
         onPick={() => {}}
@@ -122,17 +130,22 @@ describe("ModelPicker", () => {
       ...customModel("openrouter", id),
       pricing: { kind: "per-second", rates: [{ usdPerSecond }] },
     });
-    setModelCache("openrouter", [
-      at("cheap", 0.01),
-      at("middle", 0.1),
-      {
-        ...customModel("openrouter", "flat"),
-        pricing: { kind: "per-video", usd: 5 },
-      },
-      customModel("openrouter", "unpriced"),
-    ]);
+    setModelCache(
+      "openrouter",
+      [
+        at("cheap", 0.01),
+        at("middle", 0.1),
+        {
+          ...customModel("openrouter", "flat"),
+          pricing: { kind: "per-video", usd: 5 },
+        },
+        customModel("openrouter", "unpriced"),
+      ],
+      "video",
+    );
     render(
       <ModelPicker
+        kind="video"
         provider={fakeProvider(vi.fn())}
         apiKey="k"
         onPick={() => {}}
@@ -160,9 +173,10 @@ describe("ModelPicker", () => {
   });
 
   it("has no cost slider without two different prices", () => {
-    setModelCache("openrouter", models);
+    setModelCache("openrouter", models, "video");
     render(
       <ModelPicker
+        kind="video"
         provider={fakeProvider(vi.fn())}
         apiKey="k"
         onPick={() => {}}
@@ -172,10 +186,11 @@ describe("ModelPicker", () => {
   });
 
   it("accepts a slug that is not listed", async () => {
-    setModelCache("openrouter", models);
+    setModelCache("openrouter", models, "video");
     const onPick = vi.fn();
     render(
       <ModelPicker
+        kind="video"
         provider={fakeProvider(vi.fn())}
         apiKey="k"
         onPick={onPick}
@@ -192,6 +207,7 @@ describe("ModelPicker", () => {
     });
     render(
       <ModelPicker
+        kind="video"
         provider={fakeProvider(listModels)}
         apiKey="k"
         onPick={() => {}}
@@ -205,7 +221,7 @@ describe("ModelPicker", () => {
 
 describe("ModelPicker with inspectModel", () => {
   it("fills in a model's details on pick and caches them", async () => {
-    setModelCache("openrouter", models);
+    setModelCache("openrouter", models, "video");
     const inspectModel = vi.fn(async (_key: string, model: MediaModel) => ({
       ...model,
       durations: [5, 10],
@@ -214,6 +230,7 @@ describe("ModelPicker with inspectModel", () => {
     const onPick = vi.fn();
     render(
       <ModelPicker
+        kind="video"
         provider={{ ...fakeProvider(vi.fn()), inspectModel }}
         apiKey="k"
         onPick={onPick}
@@ -227,7 +244,9 @@ describe("ModelPicker with inspectModel", () => {
       ),
     );
     expect(
-      getModelCache("openrouter")?.models.find((m) => m.id === "a/one"),
+      getModelCache("openrouter", "video")?.models.find(
+        (m) => m.id === "a/one",
+      ),
     ).toMatchObject({
       durations: [5, 10],
       extra: { firstFrameField: "image_url" },
@@ -235,10 +254,11 @@ describe("ModelPicker with inspectModel", () => {
   });
 
   it("reports an inspection failure without picking", async () => {
-    setModelCache("openrouter", models);
+    setModelCache("openrouter", models, "video");
     const onPick = vi.fn();
     render(
       <ModelPicker
+        kind="video"
         provider={{
           ...fakeProvider(vi.fn()),
           inspectModel: vi.fn(async () => {

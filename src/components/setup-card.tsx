@@ -141,9 +141,10 @@ export function SetupCard({
           <ModelPicker
             provider={provider}
             apiKey={settings.key}
+            kind={settings.mode}
             selected={settings.model}
             onPick={(model) => {
-              settings.chooseModel(provider.id, model.id);
+              settings.chooseModel(provider.id, model.id, model.kind);
               onDone(model);
             }}
           />

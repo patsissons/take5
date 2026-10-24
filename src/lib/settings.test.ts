@@ -4,12 +4,14 @@ import {
   forgetKey,
   getKey,
   getLastModel,
+  getMode,
   getModelCache,
   getProvider,
   getRemember,
   setKey,
   setLastModel,
   setModelCache,
+  setMode,
   setProvider,
   setRemember,
 } from "./settings";
@@ -46,18 +48,50 @@ describe("settings", () => {
   });
 
   it("caches the model list per provider with a timestamp", () => {
-    expect(getModelCache("fal")).toBeNull();
-    setModelCache("fal", []);
-    expect(getModelCache("fal")?.at).toBeGreaterThan(0);
+    expect(getModelCache("fal", "video")).toBeNull();
+    setModelCache("fal", [], "video");
+    expect(getModelCache("fal", "video")?.at).toBeGreaterThan(0);
     localStorage.setItem("take5:models:fal", "{not json");
-    expect(getModelCache("fal")).toBeNull();
+    expect(getModelCache("fal", "video")).toBeNull();
+  });
+
+  it("remembers the mode, video unless told otherwise", () => {
+    expect(getMode()).toBe("video");
+    setMode("image");
+    expect(getMode()).toBe("image");
+    localStorage.setItem("take5:mode", "sculpture");
+    expect(getMode()).toBe("video");
+  });
+
+  it("keeps a model and a list per mode, video under the old keys", () => {
+    setLastModel("fal", "fal-ai/kling", "video");
+    setLastModel("fal", "fal-ai/flux", "image");
+    expect(localStorage.getItem("take5:model:fal")).toBe("fal-ai/kling");
+    expect(localStorage.getItem("take5:image-model:fal")).toBe("fal-ai/flux");
+    expect(getLastModel("fal", "image")).toBe("fal-ai/flux");
+
+    setModelCache("fal", [], "image");
+    expect(localStorage.getItem("take5:models:fal")).toBeNull();
+    expect(getModelCache("fal", "image")?.models).toEqual([]);
+    expect(getModelCache("fal", "video")).toBeNull();
+  });
+
+  it("reads a list cached before kinds existed as videos", () => {
+    localStorage.setItem(
+      "take5:models:xai",
+      JSON.stringify({ at: 1, models: [{ id: "grok-imagine-video" }] }),
+    );
+    expect(getModelCache("xai", "video")?.models[0]).toMatchObject({
+      id: "grok-imagine-video",
+      kind: "video",
+    });
   });
 
   it("clears only its own keys", () => {
-    setLastModel("gemini", "veo");
+    setLastModel("gemini", "veo", "video");
     localStorage.setItem("other", "keep");
     clearSettings();
-    expect(getLastModel("gemini")).toBeNull();
+    expect(getLastModel("gemini", "video")).toBeNull();
     expect(localStorage.getItem("other")).toBe("keep");
   });
 });
