@@ -92,6 +92,7 @@ export function normalizeModel(model: FalModel): MediaModel {
   const imageToVideo = model.metadata.category === "image-to-video";
   return {
     provider: "fal",
+    kind: "video",
     id: model.endpoint_id,
     name: model.metadata.display_name,
     description: model.metadata.description,

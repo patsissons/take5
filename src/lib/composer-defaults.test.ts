@@ -31,6 +31,18 @@ describe("composer defaults", () => {
     expect(defaultAspectRatio({ ...base, aspectRatios: ["1:1"] })).toBe("1:1");
   });
 
+  it("prefers 1K and square for a still", () => {
+    const still = customModel("openrouter", "m", "image");
+    expect(
+      defaultResolution({ ...still, resolutions: ["0.5K", "1k", "2K"] }),
+    ).toBe("1k");
+    expect(defaultResolution({ ...still, resolutions: ["720p"] })).toBe("720p");
+    expect(
+      defaultAspectRatio({ ...still, aspectRatios: ["16:9", "1:1"] }),
+    ).toBe("1:1");
+    expect(imageRoles(still)).toEqual(["reference"]);
+  });
+
   it("lists the image roles the model accepts", () => {
     expect(imageRoles(base)).toEqual(["first_frame", "reference"]);
     expect(

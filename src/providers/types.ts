@@ -2,12 +2,16 @@ import type { ProviderId } from "./hosts";
 
 export type { ProviderId };
 
+/** What a run makes: a clip or a single still. */
+export type MediaKind = "video" | "image";
+
 export type FrameRole = "first_frame" | "last_frame";
 export type ImageRole = FrameRole | "reference";
 
-/** A provider's video model, normalised so the UI never sees provider shapes. */
+/** A provider's video or image model, normalised so the UI never sees provider shapes. */
 export interface MediaModel {
   provider: ProviderId;
+  kind: MediaKind;
   /** The slug sent back to the provider. */
   id: string;
   name: string;
@@ -16,6 +20,10 @@ export interface MediaModel {
   frameImages: FrameRole[];
   /** Whether loose reference images are accepted. */
   referenceImages: boolean;
+  /** The most input images the model takes, when it says. */
+  maxImages?: number;
+  /** Edit-only models: nothing runs without an input image. */
+  imageRequired?: boolean;
   /** Whether the audio toggle is meaningful; null when unknown. */
   audio: boolean | null;
   /** Supported clip lengths in seconds; null when the model decides. */
@@ -33,7 +41,15 @@ export interface MediaModel {
 export type Pricing =
   | { kind: "per-second"; rates: PerSecondRate[] }
   | { kind: "per-video"; usd: number }
+  | { kind: "per-image"; rates: PerImageRate[] }
+  | { kind: "per-megapixel"; usd: number }
   | { kind: "unknown"; note: string };
+
+export interface PerImageRate {
+  usd: number;
+  /** Narrowing condition; undefined matches any resolution. */
+  resolution?: string;
+}
 
 export interface PerSecondRate {
   usdPerSecond: number;
@@ -51,6 +67,8 @@ export interface ImageInput {
 
 /** What the visitor asked for, in provider-neutral terms. */
 export interface MediaRequest {
+  /** Undefined for runs made before images existed: a video. */
+  kind?: MediaKind;
   model: string;
   prompt: string;
   duration?: number;

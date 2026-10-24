@@ -31,4 +31,36 @@ describe("badges", () => {
       }),
     ).toEqual(["text→video", "image→video", "8s", "$1.00/video"]);
   });
+
+  it("summarises image models by edit support, resolutions and price", () => {
+    const still = customModel("fal", "x", "image");
+    expect(badges(still)).toEqual(["text→image", "image edit"]);
+    expect(
+      badges({
+        ...still,
+        referenceImages: false,
+        resolutions: ["1K", "2K", "4K"],
+        pricing: {
+          kind: "per-image",
+          rates: [
+            { usd: 0.067, resolution: "1K" },
+            { usd: 0.151, resolution: "4K" },
+          ],
+        },
+      }),
+    ).toEqual(["text→image", "1K–4K", "from $0.067/image"]);
+    expect(
+      badges({
+        ...still,
+        imageRequired: true,
+        pricing: { kind: "per-megapixel", usd: 0.03 },
+      }),
+    ).toEqual(["edit only", "$0.03/MP"]);
+    expect(
+      badges({
+        ...still,
+        pricing: { kind: "per-image", rates: [{ usd: 0.02 }] },
+      }),
+    ).toEqual(["text→image", "image edit", "$0.02/image"]);
+  });
 });

@@ -1,5 +1,5 @@
 import { DEFAULT_DURATION } from "@/lib/composer-defaults";
-import type { Pricing, MediaModel } from "@/providers/types";
+import type { MediaKind, MediaModel, Pricing } from "@/providers/types";
 
 /** The lowest per-second rate a model lists, if it is priced per second. */
 export function cheapestPerSecond(pricing: Pricing | null): number | undefined {
@@ -7,16 +7,31 @@ export function cheapestPerSecond(pricing: Pricing | null): number | undefined {
   return Math.min(...pricing.rates.map((rate) => rate.usdPerSecond));
 }
 
+/** The lowest per-image rate a model lists, if it is priced per image. */
+export function cheapestPerImage(pricing: Pricing | null): number | undefined {
+  if (pricing?.kind !== "per-image" || !pricing.rates.length) return undefined;
+  return Math.min(...pricing.rates.map((rate) => rate.usd));
+}
+
 /**
- * What the cheapest five-second clip costs on this model, the one number
- * the picker can compare across per-second and per-video prices.
+ * What the cheapest unit costs on this model: a five-second clip for video,
+ * one image (a megapixel, for megapixel prices) for stills. The one number
+ * the picker can compare across a kind's price shapes.
  */
-export function clipCost(
+export function unitCost(
   model: Pick<MediaModel, "pricing">,
 ): number | undefined {
-  if (model.pricing?.kind === "per-video") return model.pricing.usd;
-  const rate = cheapestPerSecond(model.pricing);
+  const pricing = model.pricing;
+  if (pricing?.kind === "per-video") return pricing.usd;
+  if (pricing?.kind === "per-megapixel") return pricing.usd;
+  if (pricing?.kind === "per-image") return cheapestPerImage(pricing);
+  const rate = cheapestPerSecond(pricing);
   return rate === undefined ? undefined : rate * DEFAULT_DURATION;
+}
+
+/** What unitCost prices, for labels. */
+export function unitLabel(kind: MediaKind): string {
+  return kind === "image" ? "image" : `${DEFAULT_DURATION}s clip`;
 }
 
 export interface CostRange {
@@ -24,12 +39,12 @@ export interface CostRange {
   max: number;
 }
 
-/** The cheapest and dearest clip; undefined when there is nothing to range over. */
+/** The cheapest and dearest unit; undefined when there is nothing to range over. */
 export function costBounds(
   models: Array<Pick<MediaModel, "pricing">>,
 ): CostRange | undefined {
   const costs = models
-    .map(clipCost)
+    .map(unitCost)
     .filter((cost): cost is number => cost !== undefined);
   if (costs.length < 2) return undefined;
   const range = { min: Math.min(...costs), max: Math.max(...costs) };
@@ -37,7 +52,7 @@ export function costBounds(
 }
 
 /**
- * Whether a model's clip cost falls in the chosen range. `null` means the
+ * Whether a model's unit cost falls in the chosen range. `null` means the
  * range is untouched: then everything passes, unpriced models included.
  */
 export function inCostRange(
@@ -45,7 +60,7 @@ export function inCostRange(
   range: CostRange | null,
 ): boolean {
   if (!range) return true;
-  const cost = clipCost(model);
+  const cost = unitCost(model);
   return cost !== undefined && cost >= range.min && cost <= range.max;
 }
 
