@@ -98,6 +98,7 @@ export function normalizeModel(model: OpenRouterModel): MediaModel {
   );
   return {
     provider: "openrouter",
+    kind: "video",
     id: model.id,
     name: model.name,
     description: model.description,

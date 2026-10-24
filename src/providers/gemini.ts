@@ -73,6 +73,7 @@ export function normalizeModel(model: GeminiModel): MediaModel {
   const lite = /lite/.test(id);
   return {
     provider: "gemini",
+    kind: "video",
     id,
     name: model.displayName ?? id,
     description: model.description,

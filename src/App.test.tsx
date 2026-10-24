@@ -27,6 +27,7 @@ const fake: MediaProvider = vi.hoisted(() => ({
   listModels: vi.fn(async () => [
     {
       provider: "openrouter" as const,
+      kind: "video" as const,
       id: "fake/fast",
       name: "Fast",
       frameImages: [],

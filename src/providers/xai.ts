@@ -68,6 +68,7 @@ export function normalizeModel(id: string, name?: string): MediaModel {
   const classic = id === "grok-imagine-video";
   return {
     provider: "xai",
+    kind: "video",
     id,
     name: name ?? KNOWN_MODELS.find((model) => model.id === id)?.name ?? id,
     frameImages: classic ? ["first_frame"] : ["first_frame", "last_frame"],

@@ -12,16 +12,20 @@ export function defaultDuration(model: MediaModel): number {
   );
 }
 
+/** 720p for a clip, 1K for a still, when offered. */
 export function defaultResolution(model: MediaModel): string | undefined {
   const list = model.resolutions;
   if (!list?.length) return undefined;
-  return list.find((r) => r === "720p") ?? list[0];
+  const preferred = model.kind === "image" ? "1k" : "720p";
+  return list.find((r) => r.toLowerCase() === preferred) ?? list[0];
 }
 
+/** 16:9 for a clip, square for a still, when offered. */
 export function defaultAspectRatio(model: MediaModel): string | undefined {
   const list = model.aspectRatios;
   if (!list?.length) return undefined;
-  return list.find((r) => r === "16:9") ?? list[0];
+  const preferred = model.kind === "image" ? "1:1" : "16:9";
+  return list.find((r) => r === preferred) ?? list[0];
 }
 
 /** Roles the model accepts for an extra image. */

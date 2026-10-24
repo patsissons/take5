@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type { ProviderId } from "@/providers/hosts";
-import type { MediaModel } from "@/providers/types";
+import type { MediaKind, MediaModel } from "@/providers/types";
 import * as settings from "./settings";
 
 export interface Settings {
@@ -67,12 +67,17 @@ export function resolveModel(provider: ProviderId, id: string): MediaModel {
   return cached ?? customModel(provider, id);
 }
 
-export function customModel(provider: ProviderId, id: string): MediaModel {
+export function customModel(
+  provider: ProviderId,
+  id: string,
+  kind: MediaKind = "video",
+): MediaModel {
   return {
     provider,
+    kind,
     id,
     name: id,
-    frameImages: ["first_frame"],
+    frameImages: kind === "video" ? ["first_frame"] : [],
     referenceImages: true,
     audio: null,
     durations: null,

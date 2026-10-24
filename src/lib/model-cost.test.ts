@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   COST_STEPS,
-  clipCost,
   costAt,
   costBounds,
   inCostRange,
+  unitCost,
+  unitLabel,
 } from "./model-cost";
 import type { Pricing } from "@/providers/types";
 
@@ -15,14 +16,37 @@ const perSecond = (...rates: number[]) =>
     rates: rates.map((usdPerSecond) => ({ usdPerSecond })),
   });
 
-describe("clipCost", () => {
+describe("unitCost", () => {
   it("prices the cheapest five-second clip", () => {
-    expect(clipCost(perSecond(0.1, 0.05))).toBeCloseTo(0.25);
-    expect(clipCost(priced({ kind: "per-video", usd: 0.4 }))).toBe(0.4);
+    expect(unitCost(perSecond(0.1, 0.05))).toBeCloseTo(0.25);
+    expect(unitCost(priced({ kind: "per-video", usd: 0.4 }))).toBe(0.4);
     expect(
-      clipCost(priced({ kind: "unknown", note: "tokens" })),
+      unitCost(priced({ kind: "unknown", note: "tokens" })),
     ).toBeUndefined();
-    expect(clipCost(priced(null))).toBeUndefined();
+    expect(unitCost(priced(null))).toBeUndefined();
+  });
+
+  it("prices the cheapest image, or one megapixel", () => {
+    expect(
+      unitCost(
+        priced({
+          kind: "per-image",
+          rates: [
+            { usd: 0.067, resolution: "1K" },
+            { usd: 0.045, resolution: "0.5K" },
+          ],
+        }),
+      ),
+    ).toBe(0.045);
+    expect(unitCost(priced({ kind: "per-megapixel", usd: 0.03 }))).toBe(0.03);
+    expect(unitCost(priced({ kind: "per-image", rates: [] }))).toBeUndefined();
+  });
+});
+
+describe("unitLabel", () => {
+  it("names what the unit cost buys", () => {
+    expect(unitLabel("video")).toBe("5s clip");
+    expect(unitLabel("image")).toBe("image");
   });
 });
 
