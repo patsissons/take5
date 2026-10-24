@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Composer } from "@/components/composer";
 import { DeleteEverything } from "@/components/delete-everything";
 import { GitHubIcon } from "@/components/github-icon";
+import { HandoffDialog } from "@/components/handoff-dialog";
+import { HandoffReceive } from "@/components/handoff-receive";
 import { HistoryGallery } from "@/components/history-gallery";
 import { ModeToggle } from "@/components/mode-toggle";
 import { PrivacyBanner } from "@/components/privacy-banner";
@@ -12,9 +14,11 @@ import { RunView } from "@/components/run-view";
 import { SetupCard, type SetupStep } from "@/components/setup-card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { applyHandoff, type HandoffConfig } from "@/lib/handoff";
 import { deleteDatabase, runKind, type Run } from "@/lib/history";
 import { REPO_URL } from "@/lib/links";
-import { getLastModel } from "@/lib/settings";
+import { getKey, getLastModel, getModelCache } from "@/lib/settings";
+import { useHandoffLink } from "@/lib/use-handoff-link";
 import { useHash } from "@/lib/use-hash";
 import { useHistory } from "@/lib/use-history";
 import { isFinished, useRun } from "@/lib/use-run";
@@ -25,6 +29,7 @@ import type { MediaKind, MediaModel, MediaRequest } from "@/providers/types";
 
 export default function App() {
   const view = useHash();
+  const [incoming, clearIncoming] = useHandoffLink();
   const settings = useSettings();
   const provider = settings.provider
     ? providerById(settings.provider)
@@ -113,6 +118,28 @@ export default function App() {
     setSetup(null);
   }, [returnTo, settings]);
 
+  /**
+   * A handoff's settings land; without a cached model list (it stays on the
+   * other device) the picker fetches it with the model already chosen.
+   */
+  const acceptHandoff = useCallback(
+    (config: HandoffConfig) => {
+      run.clear();
+      applyHandoff(config);
+      settings.reload();
+      setReturnTo(null);
+      const { provider: id, mode } = config;
+      setSetup(
+        !getKey(id)
+          ? "key"
+          : !getLastModel(id, mode) || !getModelCache(id, mode)
+            ? "model"
+            : null,
+      );
+    },
+    [run, settings],
+  );
+
   const deleteEverything = useCallback(async () => {
     run.clear();
     await deleteDatabase();
@@ -149,6 +176,14 @@ export default function App() {
         <main className="flex flex-1 flex-col gap-6">
           {view === "privacy" ? (
             <PrivacyPage onDeleteEverything={() => void deleteEverything()} />
+          ) : incoming ? (
+            <HandoffReceive
+              sealed={incoming}
+              replacing={!!provider}
+              onApply={acceptHandoff}
+              onHistoryImported={() => void history.reload()}
+              onDone={clearIncoming}
+            />
           ) : setup || !provider || !model || !settings.key ? (
             <SetupCard
               providers={providers}
@@ -209,6 +244,11 @@ export default function App() {
                 >
                   Forget key
                 </Button>
+                <HandoffDialog
+                  runs={history.runs}
+                  disabled={busy}
+                  onHistoryImported={() => void history.reload()}
+                />
               </div>
 
               <Composer

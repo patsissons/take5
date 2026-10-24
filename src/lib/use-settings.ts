@@ -60,6 +60,9 @@ export function useSettings() {
     [],
   );
 
+  /** After something else (a handoff) wrote the settings. */
+  const reload = useCallback(() => setState(load()), []);
+
   const reset = useCallback(() => {
     settings.clearSettings();
     setState(load(null));
@@ -72,6 +75,7 @@ export function useSettings() {
     saveKey,
     forgetKey,
     chooseModel,
+    reload,
     reset,
   };
 }
