@@ -81,12 +81,15 @@ which browsers never send to the server. That payload is AES-GCM encrypted
 with a key derived from the code (PBKDF2), so the link alone, say in a
 synced browser history, is useless. The phone strips the fragment from
 the address bar on arrival, and the link expires after ten minutes. Type
-the code on the phone, check what is coming and import. The model lists
+the code on the phone (one box per character; focus moves on as you type
+and back as you delete, and a paste fills them all), check what is coming
+and import. The model lists
 stay behind, so the phone fetches its own.
 
 History and media are optional (off by default) and too big for a QR.
-Switch on "Also bring history and media" to download a `.take5` file
-(finished runs and their videos and images, no keys), send it to the phone
+Switch on "Also bring history and media", untick any runs to leave
+behind (all are ticked, with a select-all box), and download a `.take5`
+file (those runs and their videos and images, no keys), send it to the phone
 yourself (AirDrop, Nearby Share, Files) and pick it under "Import history
 file". Runs the phone already has are skipped. Nothing in a handoff goes
 over the network.
