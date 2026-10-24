@@ -1,0 +1,119 @@
+{
+  "models": [
+    {
+      "endpoint_id": "fal-ai/nano-banana-2",
+      "metadata": {
+        "display_name": "Nano Banana 2",
+        "category": "text-to-image",
+        "description": "Nano Banana 2 is Google's new state-of-the-art fast image generation and editing model",
+        "status": "active",
+        "tags": [],
+        "updated_at": "2026-10-20T22:20:27.165Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://v3b.fal.media/files/b/0a900b9e/ptbZcVWIQ_fXGGHfv8Zez_0ea5ca41bdf143a29e21e30a53120672.jpg",
+        "model_url": "https://fal.run/fal-ai/nano-banana-2",
+        "license_type": "commercial",
+        "date": "2026-02-26T16:08:01.361Z",
+        "group": {
+          "key": "nano-banana-2",
+          "label": "Text to Image"
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      }
+    },
+    {
+      "endpoint_id": "fal-ai/flux-2-pro",
+      "metadata": {
+        "display_name": "Flux 2 Pro",
+        "category": "text-to-image",
+        "description": "Image editing with FLUX.2 [pro] from Black Forest Labs. Ideal for high-quality image manipulation, style transfer, and sequential editing workflows",
+        "status": "active",
+        "tags": [],
+        "updated_at": "2026-10-20T22:53:36.708Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://v3b.fal.media/files/b/penguin/UfryXXm9my6IM8HsoP9FL_054c2c2953dc491996904114c6e04836.jpg",
+        "model_url": "https://fal.run/fal-ai/flux-2-pro",
+        "license_type": "commercial",
+        "date": "2025-11-23T00:14:31.608Z",
+        "group": {
+          "key": "Flux2-Pro",
+          "label": "Text to Image"
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      }
+    },
+    {
+      "endpoint_id": "fal-ai/nano-banana-2/edit",
+      "metadata": {
+        "display_name": "Nano Banana 2",
+        "category": "image-to-image",
+        "description": "Nano Banana 2 is Google's new state-of-the-art image generation and editing model\n",
+        "status": "active",
+        "tags": [],
+        "updated_at": "2026-10-20T22:20:30.114Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://v3b.fal.media/files/b/0a900b75/DHb_RgXoXsYLdvzQz6mdn_95e87a44239c43448939b4c382dd957c.jpg",
+        "model_url": "https://fal.run/fal-ai/nano-banana-2/edit",
+        "license_type": "commercial",
+        "date": "2026-02-26T16:20:09.685Z",
+        "group": {
+          "key": "nano-banana-2",
+          "label": "Image Editing"
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      }
+    },
+    {
+      "endpoint_id": "fal-ai/flux-pro/kontext",
+      "metadata": {
+        "display_name": "FLUX.1 Kontext [pro]",
+        "category": "image-to-image",
+        "description": "FLUX.1 Kontext [pro] handles both text and reference images as inputs, seamlessly enabling targeted, local edits and complex transformations of entire scenes.",
+        "status": "active",
+        "tags": [],
+        "updated_at": "2026-04-21T17:47:19.221Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://storage.googleapis.com/fal_cdn/fal/Training-2.jpg",
+        "model_url": "https://fal.run/fal-ai/flux-pro/kontext",
+        "license_type": "commercial",
+        "date": "2025-05-28T18:30:52.718Z",
+        "group": {
+          "key": "flux-pro-kontext",
+          "label": "Kontext [pro] -- Editing"
+        },
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      }
+    },
+    {
+      "endpoint_id": "fal-ai/esrgan",
+      "metadata": {
+        "display_name": "Upscale Images",
+        "category": "image-to-image",
+        "description": "Upscale images by a given factor.",
+        "status": "active",
+        "tags": ["upscaling", "high-res"],
+        "updated_at": "2026-04-21T17:45:19.095Z",
+        "is_favorited": null,
+        "thumbnail_url": "https://storage.googleapis.com/falserverless/gallery/esrgan.webp?v=2",
+        "thumbnail_animated_url": "https://storage.googleapis.com/falserverless/gallery/esrgan-animated.webp?v=2",
+        "model_url": "https://fal.run/fal-ai/esrgan",
+        "github_url": "https://github.com/xinntao/Real-ESRGAN/blob/master/LICENSE",
+        "license_type": "commercial",
+        "date": "2023-10-30T00:00:00.000Z",
+        "highlighted": false,
+        "kind": "inference",
+        "pinned": false
+      }
+    }
+  ],
+  "next_cursor": null,
+  "has_more": false
+}

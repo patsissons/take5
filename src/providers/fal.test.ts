@@ -4,6 +4,12 @@ import kling from "./fixtures/fal-openapi-kling.json";
 import wan from "./fixtures/fal-openapi-wan.json";
 import list from "./fixtures/fal-models.json";
 import prices from "./fixtures/fal-pricing.json";
+import imageList from "./fixtures/fal-image-models.json";
+// Hand-written: the pricing endpoint needs a key to record.
+import imagePrices from "./fixtures/fal-image-pricing.json";
+import flux2Pro from "./fixtures/fal-openapi-flux-2-pro.json";
+import kontext from "./fixtures/fal-openapi-kontext.json";
+import nanoBananaEdit from "./fixtures/fal-openapi-nano-banana-edit.json";
 import {
   applySchema,
   buildBody,
@@ -437,6 +443,168 @@ describe("fal", () => {
     expect(calls[1]).toMatchObject({
       url: job.extra!.cancelUrl,
       init: { method: "PUT", headers: { authorization: "Key k" } },
+    });
+  });
+});
+
+describe("fal images", () => {
+  const images = (imageList.models as FalModel[]).filter(isUsable);
+  const byId = (id: string) =>
+    normalizeModel(images.find((m) => m.endpoint_id === id)!);
+
+  it("lists text-to-image and editors, but not tools that take no prompt", () => {
+    expect(images.map((m) => m.endpoint_id)).not.toContain("fal-ai/esrgan");
+    expect(byId("fal-ai/nano-banana-2")).toMatchObject({
+      kind: "image",
+      frameImages: [],
+      referenceImages: false,
+    });
+    expect(byId("fal-ai/nano-banana-2/edit")).toMatchObject({
+      kind: "image",
+      referenceImages: true,
+    });
+  });
+
+  it("reads a list of references and resolutions from Nano Banana's edit schema", () => {
+    const model = applySchema(
+      byId("fal-ai/nano-banana-2/edit"),
+      inputSchema(schemasOf(nanoBananaEdit))!,
+    );
+    expect(model).toMatchObject({
+      referenceImages: true,
+      imageRequired: false,
+      resolutions: ["0.5K", "1K", "2K", "4K"],
+      sizes: null,
+      extra: { referenceField: "image_urls" },
+    });
+    expect(model.maxImages).toBeUndefined();
+    expect(model.aspectRatios).toContain("1:1");
+  });
+
+  it("reads named sizes from FLUX.2 and a required single image from Kontext", () => {
+    const flux = applySchema(
+      byId("fal-ai/flux-2-pro"),
+      inputSchema(schemasOf(flux2Pro))!,
+    );
+    expect(flux).toMatchObject({
+      referenceImages: false,
+      resolutions: null,
+      extra: { sizeField: "image_size" },
+    });
+    expect(flux.sizes).toContain("square_hd");
+    const edit = applySchema(
+      byId("fal-ai/flux-pro/kontext"),
+      inputSchema(schemasOf(kontext))!,
+    );
+    expect(edit).toMatchObject({
+      referenceImages: true,
+      imageRequired: true,
+      maxImages: 1,
+      extra: { referenceField: "image_url", referenceSingle: "true" },
+    });
+  });
+
+  it("sends a single image as a string and a named size in its field", () => {
+    expect(
+      buildBody(
+        {
+          kind: "image",
+          model: "m",
+          prompt: "p",
+          aspectRatio: "1:1",
+          images: [{ role: "reference", dataUrl: "d" }],
+        },
+        { referenceField: "image_url", referenceSingle: "true" },
+      ),
+    ).toEqual({ prompt: "p", aspect_ratio: "1:1", image_url: "d" });
+    expect(
+      buildBody(
+        {
+          kind: "image",
+          model: "m",
+          prompt: "p",
+          size: "square_hd",
+          images: [],
+        },
+        { sizeField: "image_size" },
+      ),
+    ).toEqual({ prompt: "p", image_size: "square_hd" });
+  });
+
+  it("prices stills per image or per megapixel", () => {
+    const of = (id: string) =>
+      pricingFromPrices(
+        imagePrices.prices.filter((p) => p.endpoint_id === id),
+        "image",
+      );
+    expect(of("fal-ai/nano-banana-2")).toEqual({
+      kind: "per-image",
+      rates: [{ usd: 0.08 }],
+    });
+    expect(of("fal-ai/flux-2-pro")).toEqual({
+      kind: "per-megapixel",
+      usd: 0.03,
+    });
+  });
+
+  it("pages through both image categories", async () => {
+    const calls = mockFetch(
+      Response.json({ ...imageList, models: imageList.models.slice(0, 2) }),
+      Response.json({ ...imageList, models: imageList.models.slice(2) }),
+      Response.json(imagePrices),
+    );
+    const models = await fal.listModels("k", "image");
+    expect(
+      calls.slice(0, 2).map((c) => new URL(c.url).searchParams.get("category")),
+    ).toEqual(["text-to-image", "image-to-image"]);
+    expect(models.map((m) => m.id)).toEqual([
+      "fal-ai/nano-banana-2",
+      "fal-ai/flux-2-pro",
+      "fal-ai/nano-banana-2/edit",
+      "fal-ai/flux-pro/kontext",
+    ]);
+    expect(models.find((m) => m.id === "fal-ai/flux-2-pro")?.pricing).toEqual({
+      kind: "per-megapixel",
+      usd: 0.03,
+    });
+  });
+
+  it("finishes with the first image from the queue's result", async () => {
+    mockFetch(
+      stream([{ status: "COMPLETED", request_id: "req-1" }]),
+      Response.json({
+        images: [
+          {
+            url: "https://v3b.fal.media/files/i.png",
+            content_type: "image/png",
+          },
+        ],
+        description: "",
+      }),
+    );
+    const events: JobEvent[] = [];
+    for await (const event of fal.watch("k", job, new AbortController().signal))
+      events.push(event);
+    expect(events.at(-1)).toMatchObject({
+      kind: "completed",
+      result: { mediaUrl: "https://v3b.fal.media/files/i.png" },
+    });
+  });
+
+  it("refuses a result on a host it may not contact", async () => {
+    mockFetch(
+      stream([{ status: "COMPLETED", request_id: "req-1" }]),
+      Response.json({
+        images: [{ url: "https://storage.googleapis.com/falserverless/i.png" }],
+      }),
+    );
+    const events: JobEvent[] = [];
+    for await (const event of fal.watch("k", job, new AbortController().signal))
+      events.push(event);
+    expect(events.at(-1)).toMatchObject({
+      kind: "failed",
+      error:
+        "fal put the result on storage.googleapis.com, which take5 is not allowed to contact",
     });
   });
 });
