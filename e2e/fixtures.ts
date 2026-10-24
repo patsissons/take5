@@ -1,8 +1,15 @@
 import type { Page } from "@playwright/test";
 import fixture from "../src/providers/fixtures/openrouter-models.json" with { type: "json" };
+import imageEndpoints from "../src/providers/fixtures/openrouter-image-endpoints.json" with { type: "json" };
+import imageModels from "../src/providers/fixtures/openrouter-image-models.json" with { type: "json" };
+import imageResult from "../src/providers/fixtures/openrouter-image-result.json" with { type: "json" };
 import {
   isGenerationModel,
+  normalizeImageModel,
   normalizeModel,
+  pricingFromEndpoints,
+  type ImageEndpoints,
+  type OpenRouterImageModel,
   type OpenRouterModel,
 } from "../src/providers/openrouter";
 
@@ -55,11 +62,26 @@ export async function stubOpenRouter(
     if (url.pathname === "/api/v1/videos/models") {
       return route.fulfill({ json: fixture });
     }
+    if (url.pathname === "/api/v1/images/models") {
+      return route.fulfill({ json: imageModels });
+    }
+    const endpoints = /^\/api\/v1\/images\/models\/(.+)\/endpoints$/.exec(
+      url.pathname,
+    )?.[1];
+    if (endpoints) {
+      const known = (imageEndpoints as Record<string, unknown>)[endpoints];
+      return known
+        ? route.fulfill({ json: known })
+        : route.fulfill({ status: 404, json: { error: { message: "nope" } } });
+    }
     if (!authed) {
       return route.fulfill({
         status: 401,
         json: { error: { message: "Invalid API key", code: 401 } },
       });
+    }
+    if (url.pathname === "/api/v1/images" && request.method() === "POST") {
+      return route.fulfill({ json: imageResult });
     }
     if (url.pathname === "/api/v1/videos" && request.method() === "POST") {
       return route.fulfill({
@@ -97,6 +119,18 @@ export async function stubOpenRouter(
   return stub;
 }
 
+/** OpenRouter's image models as the app would list them, prices included. */
+export function openRouterImageModels(): MediaModel[] {
+  return (imageModels.data as unknown as OpenRouterImageModel[]).map(
+    (model) => ({
+      ...normalizeImageModel(model),
+      pricing: pricingFromEndpoints(
+        (imageEndpoints as unknown as Record<string, ImageEndpoints>)[model.id],
+      ),
+    }),
+  );
+}
+
 /** Skips the setup card: a remembered provider, key, model and model list. */
 export async function seedSetup(
   page: Page,
@@ -117,18 +151,33 @@ export async function seedSetup(
 }
 
 import falList from "../src/providers/fixtures/fal-models.json" with { type: "json" };
+import falImageList from "../src/providers/fixtures/fal-image-models.json" with { type: "json" };
+import falImagePricing from "../src/providers/fixtures/fal-image-pricing.json" with { type: "json" };
+import falNanoBananaEdit from "../src/providers/fixtures/fal-openapi-nano-banana-edit.json" with { type: "json" };
+import geminiImageModels from "../src/providers/fixtures/gemini-image-models.json" with { type: "json" };
+import geminiImageResponse from "../src/providers/fixtures/gemini-image-response.json" with { type: "json" };
+import xaiImageModels from "../src/providers/fixtures/xai-image-models.json" with { type: "json" };
+import xaiImageResult from "../src/providers/fixtures/xai-image-result.json" with { type: "json" };
 import falKling from "../src/providers/fixtures/fal-openapi-kling.json" with { type: "json" };
 import falPricing from "../src/providers/fixtures/fal-pricing.json" with { type: "json" };
 import {
+  isUsable as isUsableFal,
   normalizeModel as normalizeFal,
   pricingFromPrices,
   type FalModel,
   type FalPrice,
 } from "../src/providers/fal";
-import { normalizeModel as normalizeGemini } from "../src/providers/gemini";
-import { normalizeModel as normalizeXai } from "../src/providers/xai";
+import {
+  isImageModel as isGeminiImageModel,
+  normalizeImageModel as normalizeGeminiImage,
+  normalizeModel as normalizeGemini,
+} from "../src/providers/gemini";
+import {
+  normalizeImageModel as normalizeXaiImage,
+  normalizeModel as normalizeXai,
+} from "../src/providers/xai";
 import type { ProviderId } from "../src/providers/hosts";
-import type { MediaModel } from "../src/providers/types";
+import type { MediaKind, MediaModel } from "../src/providers/types";
 
 const KEYS: Record<ProviderId, string> = {
   openrouter: "sk-or-v1-good",
@@ -142,7 +191,19 @@ function falPrices(url: URL): FalPrice[] {
   const ids = url.searchParams
     .getAll("endpoint_id")
     .flatMap((v) => v.split(","));
-  return falPricing.prices.filter((price) => ids.includes(price.endpoint_id));
+  return [...falPricing.prices, ...falImagePricing.prices].filter((price) =>
+    ids.includes(price.endpoint_id),
+  );
+}
+
+/** fal's image endpoints, by the category a list call asks for. */
+function falImages(category: string | null) {
+  return {
+    ...falImageList,
+    models: falImageList.models.filter(
+      (model) => model.metadata.category === category,
+    ),
+  };
 }
 
 /** Serves fal's platform API, queue and media CDN. */
@@ -168,8 +229,15 @@ export async function stubFal(page: Page, options: { fail?: boolean } = {}) {
             json: { detail: "invalid key credentials" },
           });
     }
-    if (url.searchParams.get("expand"))
-      return route.fulfill({ json: falKling });
+    if (url.searchParams.get("expand")) {
+      const id = url.searchParams.get("endpoint_id") ?? "";
+      return route.fulfill({
+        json: id.includes("nano-banana") ? falNanoBananaEdit : falKling,
+      });
+    }
+    const category = url.searchParams.get("category");
+    if (category?.endsWith("-to-image"))
+      return route.fulfill({ json: falImages(category) });
     return route.fulfill({ json: falList });
   });
   await page.route("https://queue.fal.run/**", (route) => {
@@ -180,7 +248,11 @@ export async function stubFal(page: Page, options: { fail?: boolean } = {}) {
         json: { detail: "invalid key credentials" },
       });
     const url = new URL(route.request().url());
-    const base = "https://queue.fal.run/fal-ai/kling-video/requests/req-e2e";
+    // Image endpoints (Nano Banana here) answer with images, not a video.
+    const image = url.pathname.includes("nano-banana");
+    const base = image
+      ? "https://queue.fal.run/fal-ai/nano-banana-2/requests/req-e2e"
+      : "https://queue.fal.run/fal-ai/kling-video/requests/req-e2e";
     if (route.request().method() === "POST") {
       return route.fulfill({
         json: {
@@ -223,16 +295,28 @@ export async function stubFal(page: Page, options: { fail?: boolean } = {}) {
         json: { status: "CANCELLATION_REQUESTED" },
       });
     return route.fulfill({
-      json: {
-        video: {
-          url: "https://v3.fal.media/files/e2e/video.mp4",
-          content_type: "video/mp4",
-        },
-      },
+      json: image
+        ? {
+            images: [
+              {
+                url: "https://v3.fal.media/files/e2e/image.png",
+                content_type: "image/png",
+              },
+            ],
+            description: "",
+          }
+        : {
+            video: {
+              url: "https://v3.fal.media/files/e2e/video.mp4",
+              content_type: "video/mp4",
+            },
+          },
     });
   });
   await page.route("https://*.fal.media/**", (route) =>
-    route.fulfill({ body: VIDEO, contentType: "video/mp4" }),
+    route.request().url().endsWith(".png")
+      ? route.fulfill({ body: PIXEL, contentType: "image/png" })
+      : route.fulfill({ body: VIDEO, contentType: "video/mp4" }),
   );
   return { requests };
 }
@@ -256,21 +340,10 @@ export async function stubGemini(page: Page) {
       });
     }
     if (url.pathname === "/v1beta/models") {
-      return route.fulfill({
-        json: {
-          models: [
-            {
-              name: "models/gemini-2.5-pro",
-              supportedGenerationMethods: ["generateContent"],
-            },
-            {
-              name: "models/veo-3.1-lite-generate-preview",
-              displayName: "Veo 3.1 Lite",
-              supportedGenerationMethods: ["predictLongRunning"],
-            },
-          ],
-        },
-      });
+      return route.fulfill({ json: geminiImageModels });
+    }
+    if (url.pathname.endsWith(":generateContent")) {
+      return route.fulfill({ json: geminiImageResponse });
     }
     if (url.pathname.endsWith(":predictLongRunning")) {
       return route.fulfill({
@@ -342,6 +415,13 @@ export async function stubXai(page: Page) {
         },
       });
     }
+    if (url.pathname === "/v1/image-generation-models")
+      return route.fulfill({ json: xaiImageModels });
+    if (
+      url.pathname === "/v1/images/generations" ||
+      url.pathname === "/v1/images/edits"
+    )
+      return route.fulfill({ json: xaiImageResult });
     if (url.pathname === "/v1/videos/generations")
       return route.fulfill({ json: { request_id: "req-e2e" } });
     if (url.pathname === "/v1/videos/req-e2e") {
@@ -368,7 +448,11 @@ export async function stubXai(page: Page) {
 }
 
 /** The cached model list each stub serves, as the app would normalise it. */
-export function seededModels(provider: ProviderId): MediaModel[] {
+export function seededModels(
+  provider: ProviderId,
+  kind: MediaKind = "video",
+): MediaModel[] {
+  if (kind === "image") return seededImageModels(provider);
   switch (provider) {
     case "fal":
       return (falList.models as FalModel[]).map(normalizeFal).map((model) => ({
@@ -395,24 +479,56 @@ export function seededModels(provider: ProviderId): MediaModel[] {
   }
 }
 
-/** Like seedSetup, for any provider. */
+function seededImageModels(provider: ProviderId): MediaModel[] {
+  switch (provider) {
+    case "openrouter":
+      return openRouterImageModels();
+    case "fal":
+      return (falImageList.models as FalModel[])
+        .filter(isUsableFal)
+        .map(normalizeFal)
+        .map((model) => ({
+          ...model,
+          pricing: pricingFromPrices(
+            falImagePricing.prices.filter((p) => p.endpoint_id === model.id),
+            "image",
+          ),
+        }));
+    case "gemini":
+      return geminiImageModels.models
+        .filter(isGeminiImageModel)
+        .map(normalizeGeminiImage);
+    case "xai":
+      return xaiImageModels.models.map(normalizeXaiImage);
+  }
+}
+
+/**
+ * Like seedSetup, for any provider and either mode. An image mode keeps
+ * its model and list under its own keys, as settings.ts does.
+ */
 export async function seedProvider(
   page: Page,
   provider: ProviderId,
   model: string,
+  mode: MediaKind = "video",
 ) {
+  const prefix = mode === "image" ? "image-" : "";
   await page.addInitScript(
-    ([id, key, slug, cache]) => {
+    ([id, key, slug, cache, kind, pre]) => {
       localStorage.setItem("take5:provider", id!);
+      localStorage.setItem("take5:mode", kind!);
       localStorage.setItem(`take5:key:${id}`, key!);
-      localStorage.setItem(`take5:model:${id}`, slug!);
-      localStorage.setItem(`take5:models:${id}`, cache!);
+      localStorage.setItem(`take5:${pre}model:${id}`, slug!);
+      localStorage.setItem(`take5:${pre}models:${id}`, cache!);
     },
     [
       provider,
       KEYS[provider],
       model,
-      JSON.stringify({ at: Date.now(), models: seededModels(provider) }),
+      JSON.stringify({ at: Date.now(), models: seededModels(provider, mode) }),
+      mode,
+      prefix,
     ],
   );
 }
